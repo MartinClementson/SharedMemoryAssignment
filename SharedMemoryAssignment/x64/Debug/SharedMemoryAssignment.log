@@ -1,0 +1,4 @@
+﻿  Producer.cpp
+c:\program files (x86)\microsoft visual studio 14.0\vc\include\xlocale(341): warning C4530: C++ exception handler used, but unwind semantics are not enabled. Specify /EHsc
+c:\program files (x86)\microsoft visual studio 14.0\vc\include\exception(358): warning C4577: 'noexcept' used with no exception handling mode specified; termination on exception is not guaranteed. Specify /EHsc
+  SharedMemoryAssignment.vcxproj -> c:\users\martin\documents\visual studio 2015\Projects\SharedMemoryAssignment\x64\Debug\SharedMemoryAssignment.exe
