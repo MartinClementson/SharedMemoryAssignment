@@ -7,9 +7,9 @@
 class SharedMemoryHandler
 {
 	private:
-		LPCWSTR fileName		= (LPCWSTR)TEXT("sharedFile"); // the file to be manipulated
-		LPCWSTR mutexName		= (LPCWSTR)TEXT("sharedMutex"); // the the mutex to be used when synchronizing
-		LPCWSTR writeEventName  = (LPCWSTR)TEXT("writeEvent"); // the the mutex to be used when synchronizing
+		LPCWSTR fileName		= (LPCWSTR)TEXT("Global\sharedFile"); // the file to be manipulated
+		LPCWSTR mutexName		= (LPCWSTR)TEXT("Global\sharedMutex"); // the the mutex to be used when synchronizing
+		LPCWSTR writeEventName  = (LPCWSTR)TEXT("Global\writeEvent"); // the the mutex to be used when synchronizing
 protected:
 	HANDLE hMapFile;	// file  Handle
 	HANDLE hMutex;		// mutex Handle

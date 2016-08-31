@@ -16,32 +16,27 @@ DWORD Producer::WriteToMemory(int number)
 		__try {
 			//write to database
 			//TCHAR szMsg[] = (LPCWSTR)text.c_str(); // the file to be manipulated
-			
-			std::cout << number << std::endl;
 			//CopyMemory((PVOID)pbuf, szMsg, (_tcslen(szMsg) * sizeof(TCHAR)));
+			std::cout << number << std::endl;
+			
 			ZeroMemory((PVOID)pbuf,10);
 			memcpy((PVOID)pbuf, &number,sizeof(int));
 		}
 		__finally
 		{
-			//release ownership of the mutex
-			
-			if (!ReleaseMutex(hMutex))
+			if (!ReleaseMutex(hMutex))			// Release the ownership of the mutex so that other processes can access it
 				MessageBox(NULL, TEXT("COULD NOT RELEASE MUTEX!"), TEXT("Obsessed handle"), MB_OK);
-			if(!SetEvent(this->hWriteEvent))
+
+			if(!SetEvent(this->hWriteEvent))	//Signal that the writing is done!
 				MessageBox(NULL, TEXT("COULD NOT Trigger Write event!"), TEXT("DANGER"), MB_OK);
-			ResetEvent(this->hWriteEvent); //Reset the signal directly after it has been sent out!
+
+			ResetEvent(this->hWriteEvent);		//Reset the signal directly after it has been sent out!
 		}
 		break;
 
 	case WAIT_ABANDONED: //got ownership of an abandoned mutex object
 		return FALSE;
-	
-
 	}
-	//CopyMemory((PVOID)pbuf, text, sizeof(text));
-	//FlushViewOfFile() // flush it to the file
-
 	return TRUE;
  }
 
@@ -51,7 +46,7 @@ void Producer::Exec()
 	for (int i = 0; i < 500; i++)
 	{
 		Sleep(500);
-		if (WriteToMemory(i)== FALSE)
+		if (WriteToMemory(i) == FALSE)
 			MessageBox(NULL, TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
 	}
 }
@@ -64,9 +59,9 @@ Producer::Producer(CommandArgs arguments)
 {
 #pragma region Create file and mapping
 	this->hMapFile = CreateFileMapping(
-		INVALID_HANDLE_VALUE,
-		NULL,
-		PAGE_READWRITE,
+		INVALID_HANDLE_VALUE,	//Instead of a file in the system, we use a system paging file
+		NULL,					//No extra attributes (default)
+		PAGE_READWRITE,			//specifies the protection, all the views to the file need to på compatible with this!
 		0,
 		(arguments.memorySize * 1000000), //convert to megabyte
 		GetFileName()
