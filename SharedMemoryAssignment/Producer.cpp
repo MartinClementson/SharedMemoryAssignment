@@ -42,13 +42,29 @@ DWORD Producer::WriteToMemory(int number)
 
 void Producer::Exec()
 {
+	DWORD waitResult = WaitForSingleObject( //Wait for a consumer to connect!
+		hConnectEvent,
+		INFINITE);
 
-	for (int i = 0; i < 500; i++)
+	switch (waitResult)
 	{
-		Sleep(500);
-		if (WriteToMemory(i) == FALSE)
-			MessageBox(NULL, TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
+		// Event object was signaled
+	case WAIT_OBJECT_0:
+		std::cout << "Consumer has connected, Beginning Data Transfer \n";
+		for (int i = 0; i < 500; i++)
+		{
+			Sleep(500);
+			if (WriteToMemory(i) == FALSE)
+				MessageBox(NULL, TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
+		}
+
+	default:
+		printf("Wait error (%d)\n", GetLastError());
+		
 	}
+
+	
+
 }
 
 Producer::Producer()
@@ -122,6 +138,17 @@ Producer::Producer(CommandArgs arguments)
 			);
 		if (hWriteEvent == NULL)
 			MessageBox(NULL, TEXT("Could not init writeEvent"), TEXT("Abandon hope"), MB_OK);
+
+
+
+		hConnectEvent = CreateEvent(
+			NULL,				 //default security attr
+			FALSE,				 //automatic reset event
+			FALSE,			     // non signaled when initializing
+			GetConnectEventName()  // name
+			);
+		if (hConnectEvent == NULL)
+			MessageBox(NULL, TEXT("Could not init connectEvent"), TEXT("Abandon hope"), MB_OK);
 #pragma endregion
 }
 
