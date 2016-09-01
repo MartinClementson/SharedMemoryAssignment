@@ -48,4 +48,6 @@ SharedMemoryHandler::~SharedMemoryHandler()
 	CloseHandle(hMapFile);
 	CloseHandle(hMutex);
 	CloseHandle(hWriteEvent);
+	CloseHandle(hConnectEvent);
+	CloseHandle(hDisconnectEvent);
 }

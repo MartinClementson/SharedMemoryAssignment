@@ -62,11 +62,62 @@ DWORD Consumer::ReadFromMemory()
 
 }
 
+bool Consumer::SetUpEventHandling(bool errorflag)
+{
+
+#pragma region Create Events
+
+	hWriteEvent = OpenEvent(
+		SYNCHRONIZE,
+		FALSE,
+		GetWriteEventName()
+		);
+	if (hWriteEvent == NULL)
+	{
+		MessageBox(NULL, TEXT("Could not init writeEvent"), TEXT("Abandon hope"), MB_OK);
+		errorflag = true;
+	}
+
+	hConnectEvent = OpenEvent(
+		EVENT_MODIFY_STATE,
+		FALSE,
+		GetConnectEventName()
+		);
+	if (hConnectEvent == NULL)
+	{
+		MessageBox(NULL, TEXT("Could not init connectEvent"), TEXT("Abandon hope"), MB_OK);
+		errorflag = true;
+	}
+
+	hDisconnectEvent = OpenEvent(
+		EVENT_MODIFY_STATE,
+		FALSE,
+		GetDisconnectEventName()
+		);
+	if (hDisconnectEvent == NULL)
+	{
+		MessageBox(NULL, TEXT("Could not init disconnect event"), TEXT("Abandon hope"), MB_OK);
+		errorflag = true;
+	}
+
+
+
+
+	return errorflag;
+}
+
+void Consumer::HandleEvents()
+{
+	
+
+
+}
+
+
 Consumer::Consumer(CommandArgs commands)
 {
 	bool error = false;
  #pragma region Create file view and open mapping
-
 
 	hMapFile = OpenFileMapping(
 		FILE_MAP_ALL_ACCESS,
@@ -76,7 +127,6 @@ Consumer::Consumer(CommandArgs commands)
 	{
 		int answer = 0;
 		do {
-
 			answer = MessageBox(NULL, TEXT("Could not find the file. Make sure a producer is running"), TEXT("No File found"), MB_RETRYCANCEL);
 			if (answer == IDRETRY)
 			{
@@ -124,31 +174,7 @@ Consumer::Consumer(CommandArgs commands)
 #pragma endregion
 
 
-
-#pragma region Create Events
-
-	hWriteEvent = OpenEvent(
-		SYNCHRONIZE,
-		FALSE,
-		GetWriteEventName() 
-		);
-	if (hWriteEvent == NULL)
-	{
-		MessageBox(NULL, TEXT("Could not init writeEvent"), TEXT("Abandon hope"), MB_OK);
-		error = true;
-	}
-
-
-	hConnectEvent = OpenEvent(
-		EVENT_MODIFY_STATE,
-		FALSE,
-		GetConnectEventName()
-		);
-	if (hConnectEvent == NULL)
-	{
-		MessageBox(NULL, TEXT("Could not init connectEvent"), TEXT("Abandon hope"), MB_OK);
-		error = true;
-	}
+	error = SetUpEventHandling(error);
 
 	if (error == false)
 		if (!SetEvent(this->hConnectEvent))
@@ -170,6 +196,9 @@ Consumer::Consumer()
 
 Consumer::~Consumer()
 {
+	SetEvent(this->hDisconnectEvent);
+	SharedMemoryHandler::~SharedMemoryHandler();
+
 	//UnmapViewOfFile(pbuf);
 	//CloseHandle(hMapFile);
 }
