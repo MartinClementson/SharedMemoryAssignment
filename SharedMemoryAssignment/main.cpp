@@ -1,15 +1,36 @@
 #include "structures.h"
 #include <iostream>
+#include <csignal>
 #include <string>
 #include <stdlib.h>
 #include "SharedMemoryHandler.h"
 #include "Consumer.h"
 #include "Producer.h"
+#include <memory>
 CommandArgs ParseCommands(int* argc, char* argv[]);
+BOOL WINAPI ConsoleHandler(DWORD CEvent);
+
+#define CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+
+std::unique_ptr<SharedMemoryHandler> memoryHandle = nullptr;
+bool process = true;
 
 int main(int argc, char* argv[])
 {
-	SharedMemoryHandler* memoryHandle = nullptr;
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+
+	
+	if (SetConsoleCtrlHandler(
+		(PHANDLER_ROUTINE)ConsoleHandler, TRUE) == FALSE)
+	{
+		// unable to install handler... 
+		// display message to the user
+		printf("Unable to install handler!\n");
+		return -1;
+	}
+
 
 	if (argc < 5)
 	{
@@ -17,18 +38,32 @@ int main(int argc, char* argv[])
 		std::getchar();
 		return -1;
 	}
+
 	CommandArgs commands = ParseCommands(&argc, argv); //parse the commands and put the information into the commands structure
 
-	if(commands.producer == true)
-		memoryHandle = new Producer(commands);
+	if(commands.producer == true)			//Create producer or consumer, depending on the commands
+		memoryHandle = std::unique_ptr<Producer>(new Producer(commands));
 	else
-		memoryHandle = new Consumer(commands);
+		memoryHandle = std::unique_ptr<Consumer>(new Consumer(commands));
 
 
-	memoryHandle->Exec();
-	std::getchar();
-	if(memoryHandle != nullptr)
-		delete memoryHandle;
+
+	
+
+	while (process)
+	{
+
+		memoryHandle->Exec();
+
+	}
+	
+
+
+
+
+	
+	//if(memoryHandle != nullptr)
+		//delete memoryHandle;
 	return 0;
 
 
@@ -72,3 +107,25 @@ CommandArgs ParseCommands(int* argc, char* argv[])
 	return toReturn;
 
 }
+
+
+BOOL WINAPI ConsoleHandler(DWORD CEvent)
+{
+	char mesg[128];
+
+	switch (CEvent)
+	{
+	
+	case CTRL_CLOSE_EVENT:
+		memoryHandle.~unique_ptr();
+		process = false;
+		MessageBox(NULL,
+			TEXT("Program being closed!"), TEXT("CEvent"), MB_OK);
+		Sleep(500);
+		break;
+	
+
+	}
+	return FALSE;
+}
+

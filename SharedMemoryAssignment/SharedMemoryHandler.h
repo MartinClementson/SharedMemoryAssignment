@@ -7,26 +7,42 @@
 class SharedMemoryHandler
 {
 	private:
-		LPCWSTR fileName		= (LPCWSTR)TEXT("Global\sharedFile"); // the file to be manipulated
-		LPCWSTR mutexName		= (LPCWSTR)TEXT("Global\sharedMutex"); // the the mutex to be used when synchronizing
-		LPCWSTR writeEventName  = (LPCWSTR)TEXT("Global\writeEvent"); // the the mutex to be used when synchronizing
-protected:
-	HANDLE hMapFile;	// file  Handle
-	HANDLE hMutex;		// mutex Handle
-	HANDLE hWriteEvent;  // writeEvent Handle
-	LPCTSTR pbuf;    //File View
+		LPCWSTR fileName			  = (LPCWSTR)TEXT("Global\sharedFile");		  // the file to be manipulated
+		LPCWSTR mutexName			  = (LPCWSTR)TEXT("Global\sharedMutex");	  // the the mutex to be used when synchronizing data
+		LPCWSTR writeEventName		  = (LPCWSTR)TEXT("Global\writeEvent");		  // the event handle to the writing event
+		LPCWSTR processConnectName	  = (LPCWSTR)TEXT("Global\connectEvent");     // the event handle to the connect event
+		LPCWSTR processDisconnectName = (LPCWSTR)TEXT("Global\DisconnectEvent");  // the event handle to the disconnect event
 
+		
+	protected:
+		HANDLE hMutex;				// mutex Handle
+		HANDLE hEventThread;		// thred handle for events
 
-
-
-
-	LPCWSTR GetFileName()		{ return this->fileName;  };
-	LPCWSTR GetMutexName()		{ return this->mutexName; };
-	LPCWSTR GetWriteEventName() { return this->writeEventName; };
-public:
-	SharedMemoryHandler();
-	SharedMemoryHandler(CommandArgs& commands);
-	virtual ~SharedMemoryHandler();
-	virtual void Exec() = 0;
+		
+		HANDLE hWriteEvent;			// writeEvent Handle
+		HANDLE hConnectEvent;		// connectEvent Handle
+		HANDLE hDisconnectEvent;	// DisconnectEvent Handle
+		HANDLE hMapFile;		    // file  Handle
+		LPCTSTR pbuf;				// File View
+	
+		unsigned int numProcesses = 0; //the amount of connected processes
+	
+		virtual bool SetUpEventHandling(bool errorflag) = 0;
+		virtual void HandleEvents() = 0;
+	
+	
+		LPCWSTR GetFileName()		     { return this->fileName;  };
+		LPCWSTR GetMutexName()		     { return this->mutexName; };
+		LPCWSTR GetWriteEventName()		 { return this->writeEventName; };
+		LPCWSTR GetConnectEventName()    { return this->processConnectName; };
+		LPCWSTR GetDisconnectEventName() { return this->processDisconnectName; }
+	
+	public:
+	
+		SharedMemoryHandler();
+		SharedMemoryHandler(CommandArgs& commands);
+		virtual ~SharedMemoryHandler();
+		virtual void Exec() = 0;
+	
 };
 
