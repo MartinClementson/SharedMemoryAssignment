@@ -11,6 +11,7 @@ protected:
 	bool SetUpEventHandling(bool errorflag);
 
 	 void HandleEvents();
+	 bool ReadSharedInformation(); // use to access the shared info memory and update info
 public:
 
 

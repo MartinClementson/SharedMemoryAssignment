@@ -21,7 +21,7 @@ DWORD Consumer::ReadFromMemory()
 	
 
 		waitResultMutex = WaitForSingleObject(		//Get the control of the mutex
-			hMutex,					// handle to mutex
+			hMsgMutex,					// handle to mutex
 			INFINITE);				// no time out interval!
 
 		switch (waitResult)
@@ -31,14 +31,14 @@ DWORD Consumer::ReadFromMemory()
 				//write to database
 				//std::string data;
 				//memcpy((PVOID)&data, pbuf, sizeof(char));
-				std::cout << (int)*pbuf << std::endl;
+				std::cout << (int)*pMsgbuf << std::endl;
 			
 			}
 			__finally
 			{
 				//release ownership of the mutex
 
-				if (!ReleaseMutex(hMutex))
+				if (!ReleaseMutex(hMsgMutex))
 					MessageBox(NULL, TEXT("COULD NOT RELEASE MUTEX!"), TEXT("DANGER"), MB_OK);
 			}
 			break;
@@ -78,30 +78,7 @@ bool Consumer::SetUpEventHandling(bool errorflag)
 		errorflag = true;
 	}
 
-	hConnectEvent = OpenEvent(
-		EVENT_MODIFY_STATE,
-		FALSE,
-		GetConnectEventName()
-		);
-	if (hConnectEvent == NULL)
-	{
-		MessageBox(NULL, TEXT("Could not init connectEvent"), TEXT("Abandon hope"), MB_OK);
-		errorflag = true;
-	}
-
-	hDisconnectEvent = OpenEvent(
-		EVENT_MODIFY_STATE,
-		FALSE,
-		GetDisconnectEventName()
-		);
-	if (hDisconnectEvent == NULL)
-	{
-		MessageBox(NULL, TEXT("Could not init disconnect event"), TEXT("Abandon hope"), MB_OK);
-		errorflag = true;
-	}
-
-
-
+	
 
 
 	return errorflag;
@@ -110,13 +87,7 @@ bool Consumer::SetUpEventHandling(bool errorflag)
 void Consumer::HandleEvents()
 {
 
-	DWORD waitResult = WaitForSingleObject( //peek if the console has closed
-		hCloseEvent,
-		1);
-	if (waitResult == WAIT_OBJECT_0)
-	{
-		this->running = false;
-	}
+
 
 
 }
@@ -126,54 +97,39 @@ Consumer::Consumer(CommandArgs commands)
 {
 	bool error = false;
 
-	//First up, set up the local close event! we need to make sure that the handling of this event will be taken care of 
-	//no matter if the rest of the program fails.
-
-	hCloseEvent = OpenEvent(
-		SYNCHRONIZE,
-		FALSE,
-		CLOSE_EVENT_NAME
-		);
-	if (hCloseEvent == NULL)
-	{
-		MessageBox(GetConsoleWindow(), TEXT("Could not open closeEvent event"), TEXT("Abandon hope"), MB_OK);
-		error = true;
-	}
-
-
  #pragma region Create file view and open mapping
 
-	hMapFile = OpenFileMapping(
+	hMsgMapFile = OpenFileMapping(
 		FILE_MAP_ALL_ACCESS,
 		FALSE,
-		(LPWSTR)GetFileName());
-	if (hMapFile == NULL) //if there is no file created
+		(LPWSTR)GetFileName(Files::MessageFile));
+	if (hMsgMapFile == NULL) //if there is no file created
 	{
 		int answer = 0;
 		do {
 			answer = MessageBox(GetConsoleWindow(), TEXT("Could not find the file. Make sure a producer is running"), TEXT("No File found"), MB_RETRYCANCEL);
 			if (answer == IDRETRY)
 			{
-				hMapFile = OpenFileMapping(
+				hMsgMapFile = OpenFileMapping(
 					FILE_MAP_ALL_ACCESS,
 					FALSE,
-					GetFileName());
-				if (hMapFile != NULL)
+					GetFileName(Files::MessageFile));
+				if (hMsgMapFile != NULL)
 					break;
 			}
 
 		} while (answer != IDCANCEL);
 	}
-	if (hMapFile != NULL) // if the file was found when clicking retry or on the first try
+	if (hMsgMapFile != NULL) // if the file was found when clicking retry or on the first try
 	{
 
 
-		pbuf = (LPTSTR)MapViewOfFile(hMapFile,
+		pMsgbuf = (LPTSTR)MapViewOfFile(hMsgMapFile,
 			FILE_MAP_ALL_ACCESS,
 			0,
 			0,
 			commands.memorySize * 1000000);
-		if (pbuf == NULL)
+		if (pMsgbuf == NULL)
 		{
 			MessageBox(GetConsoleWindow(), TEXT("Error when mapping file view"), TEXT("error"), MB_OK);
 			error = true;
@@ -181,20 +137,59 @@ Consumer::Consumer(CommandArgs commands)
 
 
 
+		hInfoMapFile = OpenFileMapping(
+			FILE_MAP_ALL_ACCESS,
+			FALSE,
+			(LPWSTR)GetFileName(Files::InformationFile));
+
+		if (hInfoMapFile == NULL)
+			error = true;
+
+		pInfobuf = (LPTSTR)MapViewOfFile(hInfoMapFile,
+			FILE_MAP_ALL_ACCESS,
+			0,
+			0,
+			sizeof(SharedInformation));
+		if (pInfobuf == NULL)
+		{
+			MessageBox(GetConsoleWindow(), TEXT("Error when mapping file view"), TEXT("error"), MB_OK);
+			error = true;
+		}
+
+
+
+
+
+
+
 #pragma endregion
 
 #pragma region Open mutex
 
-		hMutex = OpenMutex(
+		hMsgMutex = OpenMutex(
 			MUTEX_ALL_ACCESS,
 			FALSE,
-			this->GetMutexName());
+			this->GetMutexName(Files::MessageFile));
 
-		if (hMutex == NULL)
+		if (hMsgMutex == NULL)
 		{
 			MessageBox(GetConsoleWindow(), TEXT("Error openingMutex"), TEXT("HELP"), MB_OK);
 			error = true;
 		}
+
+
+		hInfoMutex = OpenMutex(
+			MUTEX_ALL_ACCESS,
+			FALSE,
+			this->GetMutexName(Files::InformationFile));
+
+		if (hInfoMutex == NULL)
+		{
+			MessageBox(GetConsoleWindow(), TEXT("Error openingMutex"), TEXT("HELP"), MB_OK);
+			error = true;
+		}
+
+
 #pragma endregion
 
 
@@ -202,13 +197,32 @@ Consumer::Consumer(CommandArgs commands)
 
 		if (error == false)
 		{
-			if (!SetEvent(this->hConnectEvent))
-			{
-				DWORD hej = GetLastError();
-				std::cout << GetLastError() << std::endl;
-				MessageBox(GetConsoleWindow(), TEXT("Could not trigger Connect event"), TEXT("Connection problem"), MB_OK);
+		
 
+			//Get the info file, wait for the mutex. then add a counter to the "numProcesses" variable
+
+			DWORD waitResult;
+
+			waitResult = WaitForSingleObject(		//Get the control of the mutex
+				hInfoMutex,							// handle to mutex
+				INFINITE);					     	// no time out interval!
+			SharedInformation *temp;
+			switch (waitResult)
+			{
+			case WAIT_OBJECT_0: //Got ownership of the mutex
+
+				temp = (SharedInformation*)pInfobuf;
+				temp->numProcesses += 1; // increment numProcesses in the shared memory
+			
+				if (!ReleaseMutex(hInfoMutex))			// Release the ownership of the mutex so that other processes can access it
+						MessageBox(GetConsoleWindow(), TEXT("COULD NOT RELEASE MUTEX!"), TEXT("Obsessed handle"), MB_OK);
+				break;
+
+			case WAIT_ABANDONED: //got ownership of an abandoned mutex object
+					MessageBox(GetConsoleWindow(), TEXT("COULD NOT get Info MUTEX!"), TEXT("in consumer Constructor"), MB_OK);
 			}
+		
+
 		}
 		else
 			running = false; //if there was any error in the process
@@ -229,8 +243,32 @@ Consumer::Consumer()
 
 Consumer::~Consumer()
 {
-	SetEvent(this->hDisconnectEvent);
 	
+	
+		 //Get the info file, wait for the mutex. then decrease a counter to the "numProcesses" variable
+
+		DWORD waitResult;
+
+		waitResult = WaitForSingleObject(		//Get the control of the mutex
+			hInfoMutex,							// handle to mutex
+			INFINITE);					     	// no time out interval!
+		SharedInformation* temp;
+		switch (waitResult)
+		{
+		case WAIT_OBJECT_0: //Got ownership of the mutex
+
+			temp = (SharedInformation*)pInfobuf;
+			temp->numProcesses -= 1;
+			if (!ReleaseMutex(hInfoMutex))			// Release the ownership of the mutex so that other processes can access it
+				MessageBox(GetConsoleWindow(), TEXT("COULD NOT RELEASE MUTEX!"), TEXT("Obsessed handle"), MB_OK);
+			break;
+
+		case WAIT_ABANDONED: //got ownership of an abandoned mutex object
+			MessageBox(GetConsoleWindow(), TEXT("COULD NOT get Info MUTEX!"), TEXT("in consumer Constructor"), MB_OK);
+		}
+
+	
+
 
 	//UnmapViewOfFile(pbuf);
 	//CloseHandle(hMapFile);

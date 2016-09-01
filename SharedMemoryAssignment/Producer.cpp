@@ -7,7 +7,7 @@ DWORD Producer::WriteToMemory(int number)
 	DWORD waitResult;
 	
 	waitResult = WaitForSingleObject(		//Get the control of the mutex
-		hMutex,					// handle to mutex
+		hMsgMutex,					// handle to mutex
 		INFINITE);				// no time out interval!
 
 	switch (waitResult)
@@ -17,14 +17,14 @@ DWORD Producer::WriteToMemory(int number)
 			//write to database
 			//TCHAR szMsg[] = (LPCWSTR)text.c_str(); // the file to be manipulated
 			//CopyMemory((PVOID)pbuf, szMsg, (_tcslen(szMsg) * sizeof(TCHAR)));
-			std::cout << number << std::endl;
+			//std::cout << number << std::endl;
 			
-			ZeroMemory((PVOID)pbuf,10);
-			memcpy((PVOID)pbuf, &number,sizeof(int));
+			ZeroMemory((PVOID)pMsgbuf,10);
+			memcpy((PVOID)pMsgbuf, &number,sizeof(int));
 		}
 		__finally
 		{
-			if (!ReleaseMutex(hMutex))			// Release the ownership of the mutex so that other processes can access it
+			if (!ReleaseMutex(hMsgMutex))			// Release the ownership of the mutex so that other processes can access it
 				MessageBox(NULL, TEXT("COULD NOT RELEASE MUTEX!"), TEXT("Obsessed handle"), MB_OK);
 
 			if(!SetEvent(this->hWriteEvent))	//Signal that the writing is done!
@@ -37,50 +37,41 @@ DWORD Producer::WriteToMemory(int number)
 	case WAIT_ABANDONED: //got ownership of an abandoned mutex object
 		return FALSE;
 	}
+
+
+
+
+				std::cout<< "Amount of consumers " << this->numProcesses << std::endl;
+			
+
+
 	return TRUE;
  }
 
 bool Producer::Exec()
 {
-	static int x = 0;
+	static int x = 0; //just some data to transfer
 	if (running)
 	{
 
-
-		if (this->numProcesses < 1) //if there arent any consumers
-		{
-
-			DWORD waitResult = WaitForSingleObject( //Wait for a consumer to connect!
-				hConnectEvent,
-				INFINITE);
-
-			switch (waitResult)
-			{
-				// Event object was signaled
-			case WAIT_OBJECT_0:
-				std::cout << "Consumer has connected, Beginning Data Transfer \n";
-				this->numProcesses += 1;
-
-
-
-			default:
-				printf("Wait error (%d)\n", GetLastError());
-
-			}
-
-		}
-		else //if we have one or more consumers, do the thing
-		{
-
 			HandleEvents(); //check for events
 			Sleep(500);
-			if (WriteToMemory(x) == FALSE)
+			if (ReadSharedInformation()) //if the information was read successfully
 			{
-				MessageBox(GetConsoleWindow(), TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
-				running = false;
+
+				if (this->numProcesses > 0) //If there are any consumers
+				{
+
+					if (WriteToMemory(x) == FALSE)
+					{
+						MessageBox(GetConsoleWindow(), TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
+						running = false;
+					}
+				}
+				x++;
 			}
-			x++;
-		}
+			else
+				running = false;
 		return true;
 
 	}
@@ -107,44 +98,6 @@ bool Producer::SetUpEventHandling(bool errorflag)
 		MessageBox(GetConsoleWindow(), TEXT("Could not init writeEvent"), TEXT("Abandon hope"), MB_OK);
 	}
 
-
-
-	hConnectEvent = CreateEvent(
-		NULL,				 //default security attr
-		FALSE,				 //automatic reset event
-		FALSE,			     // non signaled when initializing
-		GetConnectEventName()  // name
-		);
-	if (hConnectEvent == NULL)
-	{
-		errorflag = true;
-		MessageBox(GetConsoleWindow(), TEXT("Could not init connectEvent"), TEXT("Abandon hope"), MB_OK);
-	}
-
-
-	hDisconnectEvent = CreateEvent(
-		NULL,				 //default security attr
-		FALSE,				 //automatic reset event
-		FALSE,			     // non signaled when initializing
-		GetDisconnectEventName()  // name
-		);
-	if (hDisconnectEvent == NULL)
-	{
-		errorflag = true;
-		MessageBox(GetConsoleWindow(), TEXT("Could not init disconnect event"), TEXT("Abandon hope"), MB_OK);
-	}
-
-
-	hCloseEvent = OpenEvent(	 //open this one, since it's a local event and is created in main
-		SYNCHRONIZE,
-		FALSE,
-		CLOSE_EVENT_NAME
-		);
-	if (hCloseEvent == NULL)
-	{
-		MessageBox(GetConsoleWindow(), TEXT("Could not open closeEvent"), TEXT("Abandon hope"), MB_OK);
-		errorflag = true;
-	}
 
 
 #pragma endregion
@@ -175,30 +128,58 @@ void Producer::HandleEvents()
 {
 
 
-	DWORD waitResult = WaitForSingleObject( //peek if a consumer has connected
-		hConnectEvent,
-		1);
-	if (waitResult == WAIT_OBJECT_0)
+
+	DWORD waitResultx;
+
+	waitResultx = WaitForSingleObject(		//Get the control of the mutex
+		hMsgMutex,					// handle to mutex
+		INFINITE);				// no time out interval!
+
+	switch (waitResultx)
 	{
-
-		this->numProcesses += 1;
-		std::cout << "Consumer has connected \n Total Amount of consumers :" << this->numProcesses << std::endl;
-	}
+	case WAIT_OBJECT_0: //Got ownership of the mutex
 
 
-	waitResult = WaitForSingleObject( //peek if a consumer has connected
-		hDisconnectEvent,
-		1);
-	if (waitResult == WAIT_OBJECT_0)
-	{
-
-		this->numProcesses -= 1;
-		std::cout << "Consumer has disconnected \n Total Amount of consumers :" << this->numProcesses << std::endl;
+		ReleaseMutex(hMsgMutex);
 	}
 
 
 
 
+
+}
+
+bool Producer::ReadSharedInformation()
+{
+
+
+#pragma region Access Info mutex and write to info file
+
+	DWORD waitResult = WaitForSingleObject(		//Get the control of the mutex
+		hInfoMutex,								// handle to mutex
+		INFINITE);								// no time out interval!
+	SharedInformation* temp;
+	switch (waitResult)
+	{
+	case WAIT_OBJECT_0:							//Got ownership of the mutex
+
+		//memcpy((PVOID)&temp, (SharedInformation*)pInfobuf, sizeof(SharedInformation)); //copy information to temp
+		temp = (SharedInformation*)pInfobuf;
+
+		if (temp->numProcesses != this->numProcesses) //if the information has changed
+		{
+			this->numProcesses = temp->numProcesses; //update the producers information
+			if(numProcesses == 0)					//If the consumers disconnected
+				std::cout << "No Consumers connected" << std::endl;
+		}
+		if (!ReleaseMutex(hInfoMutex))			// Release the ownership of the mutex so that other processes can access it
+			MessageBox(NULL, TEXT("COULD NOT RELEASE MUTEX!"), TEXT("Obsessed handle"), MB_OK);
+		break;
+
+	case WAIT_ABANDONED: //got ownership of an abandoned mutex object
+		return false;
+	}
+	return true;
 }
 
 Producer::Producer()
@@ -207,37 +188,84 @@ Producer::Producer()
 
 Producer::Producer(CommandArgs arguments)
 {
+
+
+	/*
+		We have two shared memory files.
+		One is for the messages.
+
+		one is for information, such as, how many consumers are there, and how many have read the latest message
+			
+	*/
+
+
 	bool errorflag = false;
 #pragma region Create file and mapping
-	this->hMapFile = CreateFileMapping(
+	this->hMsgMapFile = CreateFileMapping(
 		INVALID_HANDLE_VALUE,	//Instead of a file in the system, we use a system paging file
 		NULL,					//No extra attributes (default)
 		PAGE_READWRITE,			//specifies the protection, all the views to the file need to på compatible with this!
 		0,
 		(arguments.memorySize * 1000000), //convert to megabyte
-		GetFileName()
+		GetFileName(Files::MessageFile)
 		);
 
-	if (hMapFile == NULL)
+	if (hMsgMapFile == NULL)
 	{
 		_tprintf(TEXT("FAILED!"));
 		errorflag = true;
 		DebugBreak();
 	}
 
-
-	pbuf = (LPTSTR)MapViewOfFile(hMapFile,
+	pMsgbuf = (LPTSTR)MapViewOfFile(hMsgMapFile,
 		FILE_MAP_ALL_ACCESS,
 		0,
 		0,
 		arguments.memorySize* 1000000);
 
-	if (pbuf == NULL)
+	if (pMsgbuf == NULL)
 	{
 		_tprintf(TEXT("FAILED!"));
 		errorflag = true;
 		DebugBreak();
 	}
+
+
+
+
+	this->hInfoMapFile = CreateFileMapping(
+		INVALID_HANDLE_VALUE,	//Instead of a file in the system, we use a system paging file
+		NULL,					//No extra attributes (default)
+		PAGE_READWRITE,			//specifies the protection, all the views to the file need to på compatible with this!
+		0,
+		sizeof(SharedInformation), 
+		GetFileName(Files::InformationFile)
+		);
+
+	if (hInfoMapFile == NULL)
+	{
+		MessageBox(GetConsoleWindow(), TEXT("Error when mapping file view"), TEXT("error"), MB_OK);
+		_tprintf(TEXT("FAILED!"));
+		errorflag = true;
+		DebugBreak();
+	}
+
+
+	pInfobuf = (LPTSTR)MapViewOfFile(hInfoMapFile,
+		FILE_MAP_ALL_ACCESS,
+		0,
+		0,
+		sizeof(SharedInformation));
+
+	if (pInfobuf == NULL)
+	{
+		_tprintf(TEXT("FAILED!"));
+		errorflag = true;
+		DebugBreak();
+	}
+
+
+
 
 
 	//TCHAR szMsg[] = TEXT("This text is sent to the file");
@@ -250,17 +278,31 @@ Producer::Producer(CommandArgs arguments)
 #pragma region Create Mutex
 	
 
-		hMutex = CreateMutex(
+	hMsgMutex = CreateMutex(
 			NULL,
 			FALSE,
-			this->GetMutexName());
-		if (hMutex == NULL)
+			this->GetMutexName(Files::MessageFile));
+		if (hMsgMutex == NULL)
 		{
 			errorflag = true;
 			MessageBox(NULL, TEXT("Error creating mutex")+ GetLastError(), TEXT("CRY"), MB_OK);
 		}
-		// Keep this process around until the second process is run
-		//_getch();
+		
+
+		hInfoMutex = CreateMutex(
+			NULL,
+			FALSE,
+			this->GetMutexName(Files::InformationFile));
+		if (hInfoMutex == NULL)
+		{
+			errorflag = true;
+			MessageBox(NULL, TEXT("Error creating mutex") + GetLastError(), TEXT("CRY"), MB_OK);
+		}
+
+		//set the information in the infoMemory to zero
+		SharedInformation temp;
+		memcpy((PVOID)pInfobuf, &temp, sizeof(SharedInformation));
+
 #pragma endregion
 
 		errorflag = this->SetUpEventHandling(errorflag);

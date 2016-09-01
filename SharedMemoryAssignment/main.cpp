@@ -15,7 +15,7 @@ void SetUpEvents();
 #include <stdlib.h>
 #include <crtdbg.h>
 
-std::unique_ptr<SharedMemoryHandler> memoryHandle = nullptr;
+
 bool process = true;
 HANDLE closeEventHandle;
 
@@ -42,25 +42,29 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	CommandArgs commands = ParseCommands(&argc, argv); //parse the commands and put the information into the commands structure
 
-	if(commands.producer == true)			//Create producer or consumer, depending on the commands
-		memoryHandle = std::unique_ptr<Producer>(new Producer(commands));
-	else
-		memoryHandle = std::unique_ptr<Consumer>(new Consumer(commands));
+	{ //scope for the smart pointer
+		std::unique_ptr<SharedMemoryHandler> memoryHandle = nullptr;
 
+		CommandArgs commands = ParseCommands(&argc, argv); //parse the commands and put the information into the commands structure
 
-
-	
-
-	while (memoryHandle->Exec()); //run the memory program.
-	
-	
+		if(commands.producer == true)			//Create producer or consumer, depending on the commands
+			memoryHandle = std::unique_ptr<Producer>(new Producer(commands));
+		else
+			memoryHandle = std::unique_ptr<Consumer>(new Consumer(commands));
 
 
 
+		
 
-	
+		while (process)
+			if (memoryHandle->Exec() == false) //run the memory program.
+				process = false;
+		
+	} //smart pointer deletes the data
+
+
+
 	//if(memoryHandle != nullptr)
 		//delete memoryHandle;
 	return 0;
@@ -133,8 +137,8 @@ BOOL WINAPI ConsoleHandler(DWORD CEvent)
 	{
 	
 	case CTRL_CLOSE_EVENT:
-		//memoryHandle.~unique_ptr();
-		SetEvent(closeEventHandle);
+	
+		//SetEvent(closeEventHandle);
 		process = false;
 		//MessageBox(NULL,
 		//	TEXT("Program being closed!"), TEXT("CEvent"), MB_OK);

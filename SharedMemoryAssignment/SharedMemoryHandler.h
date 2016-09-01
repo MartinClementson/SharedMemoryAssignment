@@ -4,39 +4,56 @@
 #include <conio.h>
 #include <tchar.h>
 #include "structures.h"
+	enum Files
+	{
+		MessageFile,
+		InformationFile
+
+	};
 class SharedMemoryHandler
 {
 	private:
-		LPCWSTR fileName			  = (LPCWSTR)TEXT("Global\sharedFile");		  // the file to be manipulated
-		LPCWSTR mutexName			  = (LPCWSTR)TEXT("Global\sharedMutex");	  // the the mutex to be used when synchronizing data
-		LPCWSTR writeEventName		  = (LPCWSTR)TEXT("Global\writeEvent");		  // the event handle to the writing event
-		LPCWSTR processConnectName	  = (LPCWSTR)TEXT("Global\connectEvent");     // the event handle to the connect event
-		LPCWSTR processDisconnectName = (LPCWSTR)TEXT("Global\disconnectEvent");  // the event handle to the disconnect event
+		LPCWSTR msgFileName			  = (LPCWSTR)TEXT("Global\sharedMsgFile");	  // the file to be manipulated
+		LPCWSTR msgMutexName		  = (LPCWSTR)TEXT("Global\sharedMsgMutex");	  // the the mutex to be used when synchronizing data
 
+		LPCWSTR infoFileName		  = (LPCWSTR)TEXT("Global\sharedInfoFile");	  // the file to be manipulated
+		LPCWSTR infomutexName		  = (LPCWSTR)TEXT("Global\sharedInfoMutex");  // the the mutex to be used when synchronizing data
+
+		LPCWSTR writeEventName		  = (LPCWSTR)TEXT("Global\writeEvent");		  // the event handle to the writing event
 	
 	protected:
-		HANDLE hMutex;				// mutex Handle
-		HANDLE hEventThread;		// thred handle for events
 
-		HANDLE hCloseEvent;			// console close event
-		HANDLE hWriteEvent;			// writeEvent Handle
-		HANDLE hConnectEvent;		// connectEvent Handle
-		HANDLE hDisconnectEvent;	// DisconnectEvent Handle
-		HANDLE hMapFile;		    // file  Handle
-		LPCTSTR pbuf;				// File View
+
+
+		//// Variables for the message file
+		HANDLE hMsgMapFile;			 // file  Handle
+		HANDLE hMsgMutex;			 // mutex Handle
+		LPCTSTR pMsgbuf;			 // File View
+		// Variables for the Info file
+		HANDLE hInfoMapFile;		 // file  Handle
+		HANDLE hInfoMutex;			 // mutex Handle
+		LPCTSTR pInfobuf;			 // File View
+
+
+		
+		
+		HANDLE hEventThread;		 // thread handle for events (not in use yet)
+
+		HANDLE hWriteEvent;			 // writeEvent Handle
+
 	
 		unsigned int numProcesses = 0; //the amount of connected processes
-		bool running = true;
+		bool running			  = true;
 	
 		virtual bool SetUpEventHandling(bool errorflag) = 0;
 		virtual void HandleEvents() = 0;
 	
 	
-		LPCWSTR GetFileName()		     { return this->fileName;  };
-		LPCWSTR GetMutexName()		     { return this->mutexName; };
-		LPCWSTR GetWriteEventName()		 { return this->writeEventName; };
-		LPCWSTR GetConnectEventName()    { return this->processConnectName; };
-		LPCWSTR GetDisconnectEventName() { return this->processDisconnectName; }
+		LPCWSTR GetFileName(Files fileName);
+		LPCWSTR GetMutexName(Files fileName);
+
+
+		LPCWSTR GetWriteEventName()			 { return this->writeEventName; };
 
 	
 	public:

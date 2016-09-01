@@ -15,3 +15,10 @@ struct CommandArgs
 
 
 };
+
+struct SharedInformation
+{
+	unsigned int numProcesses = 0;
+
+
+};
