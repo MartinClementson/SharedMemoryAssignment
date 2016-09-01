@@ -1,4 +1,6 @@
 #pragma once
+
+
 struct CommandArgs
 {
 	unsigned int numMessages		= 0;

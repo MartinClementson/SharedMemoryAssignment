@@ -9,6 +9,7 @@
 #include <memory>
 CommandArgs ParseCommands(int* argc, char* argv[]);
 BOOL WINAPI ConsoleHandler(DWORD CEvent);
+void SetUpEvents();
 
 #define CRTDBG_MAP_ALLOC
 #include <stdlib.h>
@@ -16,12 +17,14 @@ BOOL WINAPI ConsoleHandler(DWORD CEvent);
 
 std::unique_ptr<SharedMemoryHandler> memoryHandle = nullptr;
 bool process = true;
+HANDLE closeEventHandle;
 
 int main(int argc, char* argv[])
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
-	
+	SetUpEvents();
+
 	if (SetConsoleCtrlHandler(
 		(PHANDLER_ROUTINE)ConsoleHandler, TRUE) == FALSE)
 	{
@@ -50,12 +53,8 @@ int main(int argc, char* argv[])
 
 	
 
-	while (process)
-	{
-
-		memoryHandle->Exec();
-
-	}
+	while (memoryHandle->Exec()); //run the memory program.
+	
 	
 
 
@@ -65,6 +64,23 @@ int main(int argc, char* argv[])
 	//if(memoryHandle != nullptr)
 		//delete memoryHandle;
 	return 0;
+
+
+}
+
+void SetUpEvents()
+{
+	closeEventHandle = CreateEvent(
+		NULL,				 //default security attr
+		FALSE,				 //Automatic reset event
+		FALSE,			     // non signaled when initializing
+		CLOSE_EVENT_NAME  // name
+		);
+	if (closeEventHandle == NULL)
+	{
+	
+		MessageBox(GetConsoleWindow(), TEXT("Could not init closeEvent"), TEXT("Abandon hope"), MB_OK);
+	}
 
 
 }
@@ -117,10 +133,11 @@ BOOL WINAPI ConsoleHandler(DWORD CEvent)
 	{
 	
 	case CTRL_CLOSE_EVENT:
-		memoryHandle.~unique_ptr();
+		//memoryHandle.~unique_ptr();
+		SetEvent(closeEventHandle);
 		process = false;
-		MessageBox(NULL,
-			TEXT("Program being closed!"), TEXT("CEvent"), MB_OK);
+		//MessageBox(NULL,
+		//	TEXT("Program being closed!"), TEXT("CEvent"), MB_OK);
 		Sleep(500);
 		break;
 	

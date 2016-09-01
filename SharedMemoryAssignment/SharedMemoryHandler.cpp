@@ -44,10 +44,18 @@ SharedMemoryHandler::SharedMemoryHandler(CommandArgs & commands)
 
 SharedMemoryHandler::~SharedMemoryHandler()
 {
-	UnmapViewOfFile(pbuf);
-	CloseHandle(hMapFile);
-	CloseHandle(hMutex);
-	CloseHandle(hWriteEvent);
-	CloseHandle(hConnectEvent);
-	CloseHandle(hDisconnectEvent);
+	if (pbuf		     != NULL)
+		UnmapViewOfFile(pbuf);
+	if (hMapFile		 != NULL)
+		CloseHandle(hMapFile);
+	if (hMutex			 != NULL)
+		CloseHandle(hMutex);
+	if (hWriteEvent		 != NULL)
+		CloseHandle(hWriteEvent);
+	if (hConnectEvent	 != NULL)
+		CloseHandle(hConnectEvent);
+	if (hDisconnectEvent != NULL)
+		CloseHandle(hDisconnectEvent);
+	if (hCloseEvent		 != NULL)
+		CloseHandle(hCloseEvent);
 }

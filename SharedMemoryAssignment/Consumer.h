@@ -7,6 +7,7 @@ class Consumer : public SharedMemoryHandler
 {
 
 private:
+	
 	DWORD ReadFromMemory();
 
 
@@ -19,6 +20,6 @@ public:
 	~Consumer();
 
 
-	void Exec();
+	bool Exec();
 };
 

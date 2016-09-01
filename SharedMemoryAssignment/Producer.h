@@ -18,6 +18,6 @@ public:
 	Producer(CommandArgs arguments);
 	~Producer();
 	DWORD WriteToMemory(int number);
-	void Exec();
+	bool Exec();
 };
 

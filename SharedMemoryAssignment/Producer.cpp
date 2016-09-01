@@ -40,42 +40,52 @@ DWORD Producer::WriteToMemory(int number)
 	return TRUE;
  }
 
-void Producer::Exec()
+bool Producer::Exec()
 {
 	static int x = 0;
-	
-	if (this->numProcesses < 1)
+	if (running)
 	{
 
-		DWORD waitResult = WaitForSingleObject( //Wait for a consumer to connect!
-			hConnectEvent,
-			INFINITE);
-	
-		switch (waitResult)
+
+		if (this->numProcesses < 1) //if there arent any consumers
 		{
-			// Event object was signaled
-		case WAIT_OBJECT_0:
-			std::cout << "Consumer has connected, Beginning Data Transfer \n";
-			this->numProcesses += 1;
-				
-			
-	
-		default:
-			printf("Wait error (%d)\n", GetLastError());
-			
+
+			DWORD waitResult = WaitForSingleObject( //Wait for a consumer to connect!
+				hConnectEvent,
+				INFINITE);
+
+			switch (waitResult)
+			{
+				// Event object was signaled
+			case WAIT_OBJECT_0:
+				std::cout << "Consumer has connected, Beginning Data Transfer \n";
+				this->numProcesses += 1;
+
+
+
+			default:
+				printf("Wait error (%d)\n", GetLastError());
+
+			}
+
 		}
+		else //if we have one or more consumers, do the thing
+		{
+
+			HandleEvents(); //check for events
+			Sleep(500);
+			if (WriteToMemory(x) == FALSE)
+			{
+				MessageBox(GetConsoleWindow(), TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
+				running = false;
+			}
+			x++;
+		}
+		return true;
 
 	}
 	else
-	{
-
-		HandleEvents();
-		Sleep(500);
-		if (WriteToMemory(x) == FALSE)
-			MessageBox(NULL, TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
-		x++;
-	}
-	
+		return false;
 
 } 
 
@@ -94,7 +104,7 @@ bool Producer::SetUpEventHandling(bool errorflag)
 	if (hWriteEvent == NULL)
 	{
 		errorflag = true;
-		MessageBox(NULL, TEXT("Could not init writeEvent"), TEXT("Abandon hope"), MB_OK);
+		MessageBox(GetConsoleWindow(), TEXT("Could not init writeEvent"), TEXT("Abandon hope"), MB_OK);
 	}
 
 
@@ -108,7 +118,7 @@ bool Producer::SetUpEventHandling(bool errorflag)
 	if (hConnectEvent == NULL)
 	{
 		errorflag = true;
-		MessageBox(NULL, TEXT("Could not init connectEvent"), TEXT("Abandon hope"), MB_OK);
+		MessageBox(GetConsoleWindow(), TEXT("Could not init connectEvent"), TEXT("Abandon hope"), MB_OK);
 	}
 
 
@@ -121,7 +131,19 @@ bool Producer::SetUpEventHandling(bool errorflag)
 	if (hDisconnectEvent == NULL)
 	{
 		errorflag = true;
-		MessageBox(NULL, TEXT("Could not init disconnect event"), TEXT("Abandon hope"), MB_OK);
+		MessageBox(GetConsoleWindow(), TEXT("Could not init disconnect event"), TEXT("Abandon hope"), MB_OK);
+	}
+
+
+	hCloseEvent = OpenEvent(	 //open this one, since it's a local event and is created in main
+		SYNCHRONIZE,
+		FALSE,
+		CLOSE_EVENT_NAME
+		);
+	if (hCloseEvent == NULL)
+	{
+		MessageBox(GetConsoleWindow(), TEXT("Could not open closeEvent"), TEXT("Abandon hope"), MB_OK);
+		errorflag = true;
 	}
 
 
@@ -213,19 +235,15 @@ Producer::Producer(CommandArgs arguments)
 	if (pbuf == NULL)
 	{
 		_tprintf(TEXT("FAILED!"));
-		//CloseHandle(hMapFile);
 		errorflag = true;
 		DebugBreak();
 	}
-	TCHAR szMsg[] = TEXT("This text is sent to the file");
 
-	CopyMemory((PVOID)pbuf, szMsg, (_tcslen(szMsg) * sizeof(TCHAR)));
 
-	//getchar();
+	//TCHAR szMsg[] = TEXT("This text is sent to the file");
 	//
-	//TCHAR szMsgg[] = TEXT("This is the updated text!");
-	//
-	//CopyMemory((PVOID)pbuf, szMsgg, (_tcslen(szMsgg) * sizeof(TCHAR)));
+	//CopyMemory((PVOID)pbuf, szMsg, (_tcslen(szMsg) * sizeof(TCHAR)));
+
 #pragma endregion
 
 
