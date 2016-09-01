@@ -1,5 +1,6 @@
 #pragma once
 
+#define CLOSE_EVENT_NAME (LPCWSTR)TEXT("Local\CloseEvent")
 
 struct CommandArgs
 {
