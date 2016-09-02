@@ -148,6 +148,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CircleBuffer.cpp" />
     <ClCompile Include="Consumer.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Producer.cpp" />
@@ -155,6 +156,7 @@
     <ClCompile Include="SharedMutex.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CircleBuffer.h" />
     <ClInclude Include="Consumer.h" />
     <ClInclude Include="Producer.h" />
     <ClInclude Include="SharedMemoryHandler.h" />

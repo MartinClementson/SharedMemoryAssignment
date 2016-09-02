@@ -4,42 +4,7 @@
 
 DWORD Producer::WriteToMemory(int number)
 {
-	//DWORD waitResult;
-	//
-	//waitResult = WaitForSingleObject(		//Get the control of the mutex
-	//	hMsgMutex,					// handle to mutex
-	//	INFINITE);				// no time out interval!
-
-	//switch (waitResult)
-	//{
-	//case WAIT_OBJECT_0: //Got ownership of the mutex
-	//	__try {
-	//		//write to database
-	//		//TCHAR szMsg[] = (LPCWSTR)text.c_str(); // the file to be manipulated
-	//		//CopyMemory((PVOID)pbuf, szMsg, (_tcslen(szMsg) * sizeof(TCHAR)));
-	//		//std::cout << number << std::endl;
-	//		
-	//		ZeroMemory((PVOID)pMsgbuf,10);
-	//		memcpy((PVOID)pMsgbuf, &number,sizeof(int));
-	//	}
-	//	__finally
-	//	{
-	//		if (!ReleaseMutex(hMsgMutex))			// Release the ownership of the mutex so that other processes can access it
-	//			MessageBox(NULL, TEXT("COULD NOT RELEASE MUTEX!"), TEXT("Obsessed handle"), MB_OK);
-
-	//		if(!SetEvent(this->hWriteEvent))	//Signal that the writing is done!
-	//			MessageBox(NULL, TEXT("COULD NOT Trigger Write event!"), TEXT("DANGER"), MB_OK);
-
-	//		ResetEvent(this->hWriteEvent);		//Reset the signal directly after it has been sent out!
-	//	}
-	//	break;
-
-	//case WAIT_ABANDONED: //got ownership of an abandoned mutex object
-	//	return FALSE;
-	//}
-
-
-
+	
 	if(msgMutex->Lock(INFINITE))
 	{
 		//Mutex is ours
