@@ -4,12 +4,15 @@
 #include <conio.h>
 #include <tchar.h>
 #include "structures.h"
+#include "SharedMutex.h"
+#include <memory>
 	enum Files
 	{
 		MessageFile,
 		InformationFile
 
 	};
+
 class SharedMemoryHandler
 {
 	private:
@@ -25,14 +28,15 @@ class SharedMemoryHandler
 
 
 
-		//// Variables for the message file
+		// Variables for the message file
 		HANDLE hMsgMapFile;			 // file  Handle
-		HANDLE hMsgMutex;			 // mutex Handle
 		LPCTSTR pMsgbuf;			 // File View
+		std::unique_ptr<SharedMemory::SharedMutex> msgMutex; // mutex
+
 		// Variables for the Info file
 		HANDLE hInfoMapFile;		 // file  Handle
-		HANDLE hInfoMutex;			 // mutex Handle
 		LPCTSTR pInfobuf;			 // File View
+		std::unique_ptr<SharedMemory::SharedMutex> infoMutex; // mutex
 
 
 		

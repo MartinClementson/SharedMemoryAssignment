@@ -17,36 +17,36 @@ DWORD Consumer::ReadFromMemory()
 	case WAIT_OBJECT_0:
 		//
 		// TODO: Read from the shared buffer
+			std::cout << (int)*pMsgbuf << std::endl;
 	#pragma region Wait for mutex control then attempt to read
 	
 
-		waitResultMutex = WaitForSingleObject(		//Get the control of the mutex
-			hMsgMutex,					// handle to mutex
-			INFINITE);				// no time out interval!
-
-		switch (waitResult)
-		{
-		case WAIT_OBJECT_0: //Got ownership of the mutex
-			__try {
-				//write to database
-				//std::string data;
-				//memcpy((PVOID)&data, pbuf, sizeof(char));
-				std::cout << (int)*pMsgbuf << std::endl;
-			
-			}
-			__finally
-			{
-				//release ownership of the mutex
-
-				if (!ReleaseMutex(hMsgMutex))
-					MessageBox(NULL, TEXT("COULD NOT RELEASE MUTEX!"), TEXT("DANGER"), MB_OK);
-			}
-			break;
-
-		case WAIT_ABANDONED: //got ownership of an abandoned mutex object
-			return FALSE;
-
-		}
+	//waitResultMutex = WaitForSingleObject(		//Get the control of the mutex
+	//	hMsgMutex,					// handle to mutex
+	//	INFINITE);				// no time out interval!
+	//
+	//switch (waitResult)
+	//{
+	//case WAIT_OBJECT_0: //Got ownership of the mutex
+	//	__try {
+	//		//write to database
+	//		//std::string data;
+	//		//memcpy((PVOID)&data, pbuf, sizeof(char));
+	//	
+	//	}
+	//	__finally
+	//	{
+	//		//release ownership of the mutex
+	//
+	//		if (!ReleaseMutex(hMsgMutex))
+	//			MessageBox(NULL, TEXT("COULD NOT RELEASE MUTEX!"), TEXT("DANGER"), MB_OK);
+	//	}
+	//	break;
+	//
+	//case WAIT_ABANDONED: //got ownership of an abandoned mutex object
+	//	return FALSE;
+	//
+	//}
 	#pragma endregion
 		break;
 
@@ -149,7 +149,7 @@ Consumer::Consumer(CommandArgs commands)
 			FILE_MAP_ALL_ACCESS,
 			0,
 			0,
-			sizeof(SharedInformation));
+			sizeof(SharedData::SharedInformation));
 		if (pInfobuf == NULL)
 		{
 			MessageBox(GetConsoleWindow(), TEXT("Error when mapping file view"), TEXT("error"), MB_OK);
@@ -166,29 +166,15 @@ Consumer::Consumer(CommandArgs commands)
 
 #pragma region Open mutex
 
-		hMsgMutex = OpenMutex(
-			MUTEX_ALL_ACCESS,
-			FALSE,
-			this->GetMutexName(Files::MessageFile));
 
-		if (hMsgMutex == NULL)
-		{
-			MessageBox(GetConsoleWindow(), TEXT("Error openingMutex"), TEXT("HELP"), MB_OK);
-			error = true;
+	try {	//Create the  mutexes
+			msgMutex = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::MessageFile)));
+			infoMutex = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::InformationFile)));
 		}
-
-
-		hInfoMutex = OpenMutex(
-			MUTEX_ALL_ACCESS,
-			FALSE,
-			this->GetMutexName(Files::InformationFile));
-
-		if (hInfoMutex == NULL)
+		catch (...)
 		{
-			MessageBox(GetConsoleWindow(), TEXT("Error openingMutex"), TEXT("HELP"), MB_OK);
-			error = true;
+			MessageBox(GetConsoleWindow(), TEXT("error creating the mutexes"), TEXT("ERROR"), MB_OK);
 		}
-
 
 #pragma endregion
 
@@ -200,28 +186,14 @@ Consumer::Consumer(CommandArgs commands)
 		
 
 			//Get the info file, wait for the mutex. then add a counter to the "numProcesses" variable
-
-			DWORD waitResult;
-
-			waitResult = WaitForSingleObject(		//Get the control of the mutex
-				hInfoMutex,							// handle to mutex
-				INFINITE);					     	// no time out interval!
-			SharedInformation *temp;
-			switch (waitResult)
+			if (infoMutex->Lock(INFINITE))
 			{
-			case WAIT_OBJECT_0: //Got ownership of the mutex
-
-				temp = (SharedInformation*)pInfobuf;
+				SharedData::SharedInformation *temp;
+				temp = (SharedData::SharedInformation*)pInfobuf;
 				temp->numProcesses += 1; // increment numProcesses in the shared memory
-			
-				if (!ReleaseMutex(hInfoMutex))			// Release the ownership of the mutex so that other processes can access it
-						MessageBox(GetConsoleWindow(), TEXT("COULD NOT RELEASE MUTEX!"), TEXT("Obsessed handle"), MB_OK);
-				break;
 
-			case WAIT_ABANDONED: //got ownership of an abandoned mutex object
-					MessageBox(GetConsoleWindow(), TEXT("COULD NOT get Info MUTEX!"), TEXT("in consumer Constructor"), MB_OK);
+				infoMutex->Unlock();
 			}
-		
 
 		}
 		else
@@ -231,8 +203,8 @@ Consumer::Consumer(CommandArgs commands)
 	}
 	else
 	{
+		//if the filemap is NULL and user didnt want to retry
 		running = false;
-			//if the filemap is NULL
 	}
 }
 
@@ -246,32 +218,13 @@ Consumer::~Consumer()
 	
 	
 		 //Get the info file, wait for the mutex. then decrease a counter to the "numProcesses" variable
-
-		DWORD waitResult;
-
-		waitResult = WaitForSingleObject(		//Get the control of the mutex
-			hInfoMutex,							// handle to mutex
-			INFINITE);					     	// no time out interval!
-		SharedInformation* temp;
-		switch (waitResult)
+		if (infoMutex->Lock(INFINITE))
 		{
-		case WAIT_OBJECT_0: //Got ownership of the mutex
-
-			temp = (SharedInformation*)pInfobuf;
+			SharedData::SharedInformation* temp = (SharedData::SharedInformation*)pInfobuf;
 			temp->numProcesses -= 1;
-			if (!ReleaseMutex(hInfoMutex))			// Release the ownership of the mutex so that other processes can access it
-				MessageBox(GetConsoleWindow(), TEXT("COULD NOT RELEASE MUTEX!"), TEXT("Obsessed handle"), MB_OK);
-			break;
 
-		case WAIT_ABANDONED: //got ownership of an abandoned mutex object
-			MessageBox(GetConsoleWindow(), TEXT("COULD NOT get Info MUTEX!"), TEXT("in consumer Constructor"), MB_OK);
+			infoMutex->Unlock();
 		}
-
-	
-
-
-	//UnmapViewOfFile(pbuf);
-	//CloseHandle(hMapFile);
 }
 
 bool Consumer::Exec()
@@ -281,9 +234,11 @@ bool Consumer::Exec()
 	{
 		HandleEvents();
 		if (!this->ReadFromMemory() == TRUE)
+		{
 			MessageBox(GetConsoleWindow(), TEXT("Could not read from memory!"), TEXT("Error"), MB_OK);
-		else
-			return true;
+			return false;
+		}
+		return true;
 	}
 	else
 		return false;

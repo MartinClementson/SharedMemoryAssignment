@@ -64,9 +64,6 @@ int main(int argc, char* argv[])
 	} //smart pointer deletes the data
 
 
-
-	//if(memoryHandle != nullptr)
-		//delete memoryHandle;
 	return 0;
 
 

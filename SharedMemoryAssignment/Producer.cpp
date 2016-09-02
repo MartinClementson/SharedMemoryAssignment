@@ -4,47 +4,58 @@
 
 DWORD Producer::WriteToMemory(int number)
 {
-	DWORD waitResult;
-	
-	waitResult = WaitForSingleObject(		//Get the control of the mutex
-		hMsgMutex,					// handle to mutex
-		INFINITE);				// no time out interval!
+	//DWORD waitResult;
+	//
+	//waitResult = WaitForSingleObject(		//Get the control of the mutex
+	//	hMsgMutex,					// handle to mutex
+	//	INFINITE);				// no time out interval!
 
-	switch (waitResult)
+	//switch (waitResult)
+	//{
+	//case WAIT_OBJECT_0: //Got ownership of the mutex
+	//	__try {
+	//		//write to database
+	//		//TCHAR szMsg[] = (LPCWSTR)text.c_str(); // the file to be manipulated
+	//		//CopyMemory((PVOID)pbuf, szMsg, (_tcslen(szMsg) * sizeof(TCHAR)));
+	//		//std::cout << number << std::endl;
+	//		
+	//		ZeroMemory((PVOID)pMsgbuf,10);
+	//		memcpy((PVOID)pMsgbuf, &number,sizeof(int));
+	//	}
+	//	__finally
+	//	{
+	//		if (!ReleaseMutex(hMsgMutex))			// Release the ownership of the mutex so that other processes can access it
+	//			MessageBox(NULL, TEXT("COULD NOT RELEASE MUTEX!"), TEXT("Obsessed handle"), MB_OK);
+
+	//		if(!SetEvent(this->hWriteEvent))	//Signal that the writing is done!
+	//			MessageBox(NULL, TEXT("COULD NOT Trigger Write event!"), TEXT("DANGER"), MB_OK);
+
+	//		ResetEvent(this->hWriteEvent);		//Reset the signal directly after it has been sent out!
+	//	}
+	//	break;
+
+	//case WAIT_ABANDONED: //got ownership of an abandoned mutex object
+	//	return FALSE;
+	//}
+
+
+
+	if(msgMutex->Lock(INFINITE))
 	{
-	case WAIT_OBJECT_0: //Got ownership of the mutex
-		__try {
-			//write to database
-			//TCHAR szMsg[] = (LPCWSTR)text.c_str(); // the file to be manipulated
-			//CopyMemory((PVOID)pbuf, szMsg, (_tcslen(szMsg) * sizeof(TCHAR)));
-			//std::cout << number << std::endl;
-			
-			ZeroMemory((PVOID)pMsgbuf,10);
-			memcpy((PVOID)pMsgbuf, &number,sizeof(int));
-		}
-		__finally
-		{
-			if (!ReleaseMutex(hMsgMutex))			// Release the ownership of the mutex so that other processes can access it
-				MessageBox(NULL, TEXT("COULD NOT RELEASE MUTEX!"), TEXT("Obsessed handle"), MB_OK);
+		//Mutex is ours
+		ZeroMemory((PVOID)pMsgbuf, 10);
+		memcpy((PVOID)pMsgbuf, &number, sizeof(int));
 
-			if(!SetEvent(this->hWriteEvent))	//Signal that the writing is done!
-				MessageBox(NULL, TEXT("COULD NOT Trigger Write event!"), TEXT("DANGER"), MB_OK);
+		msgMutex->Unlock(); //release the mutex
 
+		if (!SetEvent(this->hWriteEvent))	//Signal that the writing is done!
+			MessageBox(NULL, TEXT("COULD NOT Trigger Write event!"), TEXT("DANGER"), MB_OK);
+		else
 			ResetEvent(this->hWriteEvent);		//Reset the signal directly after it has been sent out!
-		}
-		break;
-
-	case WAIT_ABANDONED: //got ownership of an abandoned mutex object
-		return FALSE;
 	}
-
-
-
 
 				std::cout<< "Amount of consumers " << this->numProcesses << std::endl;
 			
-
-
 	return TRUE;
  }
 
@@ -128,57 +139,26 @@ void Producer::HandleEvents()
 {
 
 
-
-	DWORD waitResultx;
-
-	waitResultx = WaitForSingleObject(		//Get the control of the mutex
-		hMsgMutex,					// handle to mutex
-		INFINITE);				// no time out interval!
-
-	switch (waitResultx)
-	{
-	case WAIT_OBJECT_0: //Got ownership of the mutex
-
-
-		ReleaseMutex(hMsgMutex);
-	}
-
-
-
-
-
 }
 
 bool Producer::ReadSharedInformation()
 {
 
 
-#pragma region Access Info mutex and write to info file
+#pragma region Access Info mutex 
 
-	DWORD waitResult = WaitForSingleObject(		//Get the control of the mutex
-		hInfoMutex,								// handle to mutex
-		INFINITE);								// no time out interval!
-	SharedInformation* temp;
-	switch (waitResult)
+	
+	SharedData::SharedInformation* temp;
+	temp = (SharedData::SharedInformation*)pInfobuf;
+
+	if (temp->numProcesses != this->numProcesses) //if the information has changed
 	{
-	case WAIT_OBJECT_0:							//Got ownership of the mutex
-
-		//memcpy((PVOID)&temp, (SharedInformation*)pInfobuf, sizeof(SharedInformation)); //copy information to temp
-		temp = (SharedInformation*)pInfobuf;
-
-		if (temp->numProcesses != this->numProcesses) //if the information has changed
-		{
-			this->numProcesses = temp->numProcesses; //update the producers information
-			if(numProcesses == 0)					//If the consumers disconnected
-				std::cout << "No Consumers connected" << std::endl;
-		}
-		if (!ReleaseMutex(hInfoMutex))			// Release the ownership of the mutex so that other processes can access it
-			MessageBox(NULL, TEXT("COULD NOT RELEASE MUTEX!"), TEXT("Obsessed handle"), MB_OK);
-		break;
-
-	case WAIT_ABANDONED: //got ownership of an abandoned mutex object
-		return false;
+		this->numProcesses = temp->numProcesses; //update the producers information
+		if (numProcesses == 0)					 //If the consumers disconnected
+			std::cout << "No Consumers connected" << std::endl;
 	}
+
+
 	return true;
 }
 
@@ -238,7 +218,7 @@ Producer::Producer(CommandArgs arguments)
 		NULL,					//No extra attributes (default)
 		PAGE_READWRITE,			//specifies the protection, all the views to the file need to på compatible with this!
 		0,
-		sizeof(SharedInformation), 
+		sizeof(SharedData::SharedInformation),
 		GetFileName(Files::InformationFile)
 		);
 
@@ -255,7 +235,7 @@ Producer::Producer(CommandArgs arguments)
 		FILE_MAP_ALL_ACCESS,
 		0,
 		0,
-		sizeof(SharedInformation));
+		sizeof(SharedData::SharedInformation));
 
 	if (pInfobuf == NULL)
 	{
@@ -278,30 +258,39 @@ Producer::Producer(CommandArgs arguments)
 #pragma region Create Mutex
 	
 
-	hMsgMutex = CreateMutex(
-			NULL,
-			FALSE,
-			this->GetMutexName(Files::MessageFile));
-		if (hMsgMutex == NULL)
-		{
-			errorflag = true;
-			MessageBox(NULL, TEXT("Error creating mutex")+ GetLastError(), TEXT("CRY"), MB_OK);
-		}
-		
+//hMsgMutex = CreateMutex(
+//		NULL,
+//		FALSE,
+//		this->GetMutexName(Files::MessageFile));
+//	if (hMsgMutex == NULL)
+//	{
+//		errorflag = true;
+//		MessageBox(NULL, TEXT("Error creating mutex")+ GetLastError(), TEXT("CRY"), MB_OK);
+//	}
+	try {
 
-		hInfoMutex = CreateMutex(
-			NULL,
-			FALSE,
-			this->GetMutexName(Files::InformationFile));
-		if (hInfoMutex == NULL)
-		{
-			errorflag = true;
-			MessageBox(NULL, TEXT("Error creating mutex") + GetLastError(), TEXT("CRY"), MB_OK);
-		}
+		msgMutex = std::unique_ptr<SharedMemory::SharedMutex> (new SharedMemory::SharedMutex(this->GetMutexName(Files::MessageFile)));
+		infoMutex = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::InformationFile)));
+	}
+	catch (...)
+	{
+		MessageBox(GetConsoleWindow(), TEXT("error creating the mutexes"), TEXT("ERROR"), MB_OK);
+	}
+
+	//hInfoMutex = CreateMutex(
+	//	NULL,
+	//	FALSE,
+	//	this->GetMutexName(Files::InformationFile));
+	//if (hInfoMutex == NULL)
+	//{
+	//	errorflag = true;
+	//	MessageBox(NULL, TEXT("Error creating mutex") + GetLastError(), TEXT("CRY"), MB_OK);
+	//}
+
 
 		//set the information in the infoMemory to zero
-		SharedInformation temp;
-		memcpy((PVOID)pInfobuf, &temp, sizeof(SharedInformation));
+		SharedData::SharedInformation temp;
+		memcpy((PVOID)pInfobuf, &temp, sizeof(SharedData::SharedInformation));
 
 #pragma endregion
 
