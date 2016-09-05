@@ -22,7 +22,7 @@ SharedMutex::SharedMutex(LPCWSTR mutexName)
 			mutexName);
 		if (mutexHandle == NULL) // if it still doesent work, it's a critical error
 		{
-			MessageBox(NULL, TEXT("Error creating mutex") + GetLastError(), TEXT("CRY"), MB_OK);
+			MessageBox(GetConsoleWindow(), TEXT("Error creating mutex") + GetLastError(), TEXT("CRY"), MB_OK);
 			throw 20;
 		}
 	}

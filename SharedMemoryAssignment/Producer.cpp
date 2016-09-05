@@ -166,7 +166,7 @@ Producer::Producer(CommandArgs arguments)
 		FILE_MAP_ALL_ACCESS,
 		0,
 		0,
-		arguments.memorySize* 1000000);
+		arguments.memorySize* 1 << 20);
 
 	if (pMsgbuf == NULL)
 	{

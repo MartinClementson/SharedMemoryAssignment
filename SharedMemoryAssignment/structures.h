@@ -22,6 +22,8 @@ namespace SharedData
 	struct SharedInformation
 	{
 		unsigned int numProcesses = 0;
+		unsigned int head;  //head index
+		unsigned int tail;	//tail index
 
 		//buffer info here
 	};
