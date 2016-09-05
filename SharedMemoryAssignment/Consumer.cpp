@@ -218,6 +218,8 @@ Consumer::~Consumer()
 	
 	
 		 //Get the info file, wait for the mutex. then decrease a counter to the "numProcesses" variable
+	if (infoMutex != NULL)
+	{
 		if (infoMutex->Lock(INFINITE))
 		{
 			SharedData::SharedInformation* temp = (SharedData::SharedInformation*)pInfobuf;
@@ -225,6 +227,7 @@ Consumer::~Consumer()
 
 			infoMutex->Unlock();
 		}
+	}
 }
 
 bool Consumer::Exec()
