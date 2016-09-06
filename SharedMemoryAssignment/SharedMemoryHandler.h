@@ -17,13 +17,13 @@
 class SharedMemoryHandler
 {
 	private:
-		LPCWSTR msgFileName			  = (LPCWSTR)TEXT("Global\\sharedMsgFile");	  // the file to be manipulated
-		LPCWSTR msgMutexName		  = (LPCWSTR)TEXT("Global\\sharedMsgMutex");	  // the the mutex to be used when synchronizing data
-															  
-		LPCWSTR infoFileName		  = (LPCWSTR)TEXT("Global\\sharedInfoFile");	  // the file to be manipulated
-		LPCWSTR infomutexName		  = (LPCWSTR)TEXT("Global\\sharedInfoMutex");  // the the mutex to be used when synchronizing data
-															  
-		LPCWSTR writeEventName		  = (LPCWSTR)TEXT("Global\\writeEvent");		  // the event handle to the writing event
+		LPCWSTR msgFileName			  = (LPCWSTR)TEXT("Global\sharedMsgFile");	  // the file to be manipulated
+		LPCWSTR msgMutexName		  = (LPCWSTR)TEXT("Global\sharedMsgMutex");	  // the the mutex to be used when synchronizing data
+															 
+		LPCWSTR infoFileName		  = (LPCWSTR)TEXT("Global\sharedInfoFile");	  // the file to be manipulated
+		LPCWSTR infomutexName		  = (LPCWSTR)TEXT("Global\sharedInfoMutex");  // the the mutex to be used when synchronizing data
+															 
+		LPCWSTR writeEventName		  = (LPCWSTR)TEXT("Global\writeEvent");		  // the event handle to the writing event
 	
 	protected:
 

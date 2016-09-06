@@ -1,7 +1,7 @@
 #include "Producer.h"
 #include <atlstr.h>
 
-#define new new(_NORMAL_BLOCK, __FILE__, __LINE__)
+
 DWORD Producer::WriteToMemory(int number)
 {
 	
