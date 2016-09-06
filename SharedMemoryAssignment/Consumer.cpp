@@ -8,8 +8,7 @@ DWORD Consumer::ReadFromMemory()
 	DWORD waitResultMutex = NULL;
 	waitResult = WaitForSingleObject( //wait for event to trigger that the producer has finished writing
 		hWriteEvent, // event handle
-		INFINITE);    // indefinite wait
-
+		INFINITE);    // infinite wait
 
 	switch (waitResult)
 	{
@@ -20,36 +19,6 @@ DWORD Consumer::ReadFromMemory()
 		// TODO: Read from the shared buffer
 			pMsgbuf = (int*)this->messageBuffer->GetMessageBuffer()->vFileView;
 			std::cout << *pMsgbuf << std::endl;
-	#pragma region Wait for mutex control then attempt to read
-	
-
-	//waitResultMutex = WaitForSingleObject(		//Get the control of the mutex
-	//	hMsgMutex,					// handle to mutex
-	//	INFINITE);				// no time out interval!
-	//
-	//switch (waitResult)
-	//{
-	//case WAIT_OBJECT_0: //Got ownership of the mutex
-	//	__try {
-	//		//write to database
-	//		//std::string data;
-	//		//memcpy((PVOID)&data, pbuf, sizeof(char));
-	//	
-	//	}
-	//	__finally
-	//	{
-	//		//release ownership of the mutex
-	//
-	//		if (!ReleaseMutex(hMsgMutex))
-	//			MessageBox(NULL, TEXT("COULD NOT RELEASE MUTEX!"), TEXT("DANGER"), MB_OK);
-	//	}
-	//	break;
-	//
-	//case WAIT_ABANDONED: //got ownership of an abandoned mutex object
-	//	return FALSE;
-	//
-	//}
-	#pragma endregion
 		break;
 
 		// An error occurred
@@ -57,11 +26,7 @@ DWORD Consumer::ReadFromMemory()
 		printf("Wait error (%d)\n", GetLastError());
 		return 0;
 	}
-
-
-
 	return TRUE;
-
 }
 
 bool Consumer::SetUpEventHandling(bool errorflag)
@@ -104,25 +69,23 @@ void Consumer::HandleEvents()
 }
 
 
-Consumer::Consumer(CommandArgs arguments)
+Consumer::Consumer(CommandArgs &arguments)
 {
 	bool errorflag = false;
 
 
  #pragma region Open mapping and create file view 
 
-	try {
-		messageBuffer = std::unique_ptr<SharedMemory::CircleBuffer>(new SharedMemory::CircleBuffer(arguments, GetFileName(Files::MessageFile), GetFileName(Files::InformationFile)));
-	}
-	catch (...)
-	{
+	messageBuffer = std::unique_ptr<SharedMemory::CircleBuffer>(new SharedMemory::CircleBuffer());
+	if (!messageBuffer->Init(arguments, GetFileName(Files::MessageFile), GetFileName(Files::InformationFile)))
 		errorflag = true;
-	}
 
 #pragma endregion
 
 #pragma region Open mutex
 
+	if (!errorflag)
+	{
 
 	try {	//Create the  mutexes
 			msgMutex  = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::MessageFile)));
@@ -133,10 +96,11 @@ Consumer::Consumer(CommandArgs arguments)
 			MessageBox(GetConsoleWindow(), TEXT("error creating the mutexes"), TEXT("ERROR"), MB_OK);
 			errorflag = true;
 		}
+	}
 
 #pragma endregion
 
-
+	if(!errorflag)
 		errorflag = SetUpEventHandling(errorflag);
 
 		if (errorflag == false)
@@ -156,12 +120,6 @@ Consumer::Consumer(CommandArgs arguments)
 			running = false; //if there was any error in the process
 
 #pragma endregion
-	//}
-	//else
-	//{
-	//	//if the filemap is NULL and user didnt want to retry
-	//	running = false;
-	//}
 }
 
 Consumer::Consumer()
