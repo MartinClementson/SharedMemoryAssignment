@@ -38,7 +38,7 @@ SharedMemoryHandler::SharedMemoryHandler()
 {
 }
 
-SharedMemoryHandler::SharedMemoryHandler(CommandArgs & commands)
+SharedMemoryHandler::SharedMemoryHandler(CommandArgs* arguments)
 {
 	
 }
@@ -49,15 +49,7 @@ SharedMemoryHandler::~SharedMemoryHandler()
 	//Close message file
 	//if (pMsgbuf			!= NULL)
 	//	UnmapViewOfFile(pMsgbuf);
-	if (hMsgMapFile		!= NULL)
-		CloseHandle(hMsgMapFile);
 	
-
-	//close info file
-	if (pInfobuf != NULL)
-		UnmapViewOfFile(pInfobuf);
-	if (hInfoMapFile != NULL)
-		CloseHandle(hInfoMapFile);
 	//Close Events
 	if (hWriteEvent		 != NULL)
 		CloseHandle(hWriteEvent);

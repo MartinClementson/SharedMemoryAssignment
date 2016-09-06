@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 using namespace std;
+
 namespace SharedMemory
 {
 	//TODO
@@ -26,17 +27,14 @@ namespace SharedMemory
 
 		shared_ptr<SharedMemory::SharedMemoryStruct> _MessageMem;
 		shared_ptr<SharedMemory::SharedMemoryStruct> _InfoMem;
-		CircleBuffer();
+		
 	public:
-
-		size_t CanRead(); //returns amount of bytes that can be read
-		size_t CanWrite(); //returns amount of bytes that is free
-
 	//bool Push(const void* msg, size_t length);
 	//
 	//bool Pop(char* msg, size_t& length);
 
-		CircleBuffer(CommandArgs info,
+		CircleBuffer();
+		bool Init(CommandArgs& info,
 			LPCWSTR msgBufferName,
 			LPCWSTR infoBufferName);
 

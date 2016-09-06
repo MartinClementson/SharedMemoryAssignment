@@ -1,20 +1,17 @@
 #pragma once
 #include <Windows.h>
 #include <string>
+
 #define CLOSE_EVENT_NAME (LPCWSTR)TEXT("Local\CloseEvent")
 
 struct CommandArgs
 {
-	unsigned int numMessages		= 0;
-	unsigned int memorySize = 0;
-
-	bool producer = false;
-	bool random	  = false;
-	unsigned int msgSize	= 0;
-
-	double msDelay;
-
-
+	bool producer			 = false;
+	double msDelay			 = 0;
+	unsigned int memorySize  = 0;
+	unsigned int numMessages = 0;
+	bool random				 = false;
+	unsigned int msgSize	 = 0;
 };
 
 namespace SharedData
@@ -22,6 +19,7 @@ namespace SharedData
 
 	struct SharedInformation
 	{
+		bool producerConnected	  = false;
 		unsigned int numProcesses = 0;
 		unsigned int head;  //head index
 		unsigned int tail;	//tail index
@@ -85,9 +83,9 @@ namespace SharedMemory
 		LPCTSTR vFileView = NULL;
 		SharedMemoryStruct() {};
 	
-		SharedMemoryStruct(CommandArgs info, LPCWSTR bufferName)
+		bool Init(CommandArgs* info, LPCWSTR bufferName)
 		{
-	
+			
 			//try opening it first
 			this->hFileMap = OpenFileMapping(
 				FILE_MAP_ALL_ACCESS,
@@ -100,14 +98,15 @@ namespace SharedMemory
 					NULL,					//No extra attributes (default)
 					PAGE_READWRITE,			//specifies the protection, all the views to the file need to på compatible with this!
 					0,
-					(info.memorySize * 1 << 20), //convert to megabyte
+					info->memorySize, //convert to megabyte
 					bufferName
 					);
 	
 				if (hFileMap == NULL) //if it still doesent work, throw error
 				{
+					DWORD hej = GetLastError();
 					MessageBox(GetConsoleWindow(), TEXT("Error creating fileMap"), TEXT("SharedMemoryStruct"), MB_OK);
-					throw(string("Could not create fileMap"));
+					return false;
 				}
 			}
 	
@@ -115,12 +114,13 @@ namespace SharedMemory
 				FILE_MAP_ALL_ACCESS,
 				0,
 				0,
-				(info.memorySize * 1 << 20)); //convert to megabyte
+				info->memorySize ); 
 			if (vFileView == NULL)
 			{
 				MessageBox(GetConsoleWindow(), TEXT("Error when mapping file view"), TEXT("SharedMemoryStruct"), MB_OK);
-				throw(string("Could not map file view"));
+				return false;
 			}
+			return true;
 
 		}
 		~SharedMemoryStruct() {
