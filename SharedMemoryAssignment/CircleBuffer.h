@@ -29,10 +29,6 @@ namespace SharedMemory
 		shared_ptr<SharedMemory::SharedMemoryStruct> _InfoMem;
 		
 	public:
-
-		size_t CanRead(); //returns amount of bytes that can be read
-		size_t CanWrite(); //returns amount of bytes that is free
-
 	//bool Push(const void* msg, size_t length);
 	//
 	//bool Pop(char* msg, size_t& length);

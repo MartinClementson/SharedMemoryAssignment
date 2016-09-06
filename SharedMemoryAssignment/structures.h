@@ -19,6 +19,7 @@ namespace SharedData
 
 	struct SharedInformation
 	{
+		bool producerConnected	  = false;
 		unsigned int numProcesses = 0;
 		unsigned int head;  //head index
 		unsigned int tail;	//tail index
@@ -84,7 +85,7 @@ namespace SharedMemory
 	
 		bool Init(CommandArgs* info, LPCWSTR bufferName)
 		{
-	
+			
 			//try opening it first
 			this->hFileMap = OpenFileMapping(
 				FILE_MAP_ALL_ACCESS,
