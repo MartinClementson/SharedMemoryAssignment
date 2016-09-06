@@ -16,7 +16,7 @@ public:
 
 
 	Producer();
-	Producer(CommandArgs arguments);
+	Producer(CommandArgs& arguments);
 	~Producer();
 	DWORD WriteToMemory(int number);
 	bool Exec();
