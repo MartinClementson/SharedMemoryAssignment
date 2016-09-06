@@ -6,6 +6,7 @@
 #include "structures.h"
 #include "SharedMutex.h"
 #include <memory>
+#include "CircleBuffer.h"
 	enum Files
 	{
 		MessageFile,
@@ -26,11 +27,12 @@ class SharedMemoryHandler
 	
 	protected:
 
-
+		std::unique_ptr<SharedMemory::CircleBuffer> messageBuffer;
+		//std::unique_ptr<SharedMemory::SharedMemoryStruct> infoBuffer;
 
 		// Variables for the message file
 		HANDLE hMsgMapFile;			 // file  Handle
-		LPCTSTR pMsgbuf;			 // File View
+		//LPCTSTR pMsgbuf;			 // File View
 		std::unique_ptr<SharedMemory::SharedMutex> msgMutex; // mutex
 
 		// Variables for the Info file

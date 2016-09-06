@@ -47,8 +47,8 @@ SharedMemoryHandler::SharedMemoryHandler(CommandArgs & commands)
 SharedMemoryHandler::~SharedMemoryHandler()
 {
 	//Close message file
-	if (pMsgbuf			!= NULL)
-		UnmapViewOfFile(pMsgbuf);
+	//if (pMsgbuf			!= NULL)
+	//	UnmapViewOfFile(pMsgbuf);
 	if (hMsgMapFile		!= NULL)
 		CloseHandle(hMsgMapFile);
 	

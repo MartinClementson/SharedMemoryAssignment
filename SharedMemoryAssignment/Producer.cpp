@@ -8,8 +8,9 @@ DWORD Producer::WriteToMemory(int number)
 	if(msgMutex->Lock(INFINITE))
 	{
 		//Mutex is ours
-		ZeroMemory((PVOID)pMsgbuf, 10);
-		memcpy((PVOID)pMsgbuf, &number, sizeof(int));
+		PVOID pMsgbuf = (PVOID) this->messageBuffer->GetMessageBuffer()->vFileView;
+		ZeroMemory(pMsgbuf, 10);
+		memcpy(pMsgbuf, &number, sizeof(int));
 
 		msgMutex->Unlock(); //release the mutex
 
@@ -43,8 +44,8 @@ bool Producer::Exec()
 						MessageBox(GetConsoleWindow(), TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
 						running = false;
 					}
+					x++;
 				}
-				x++;
 			}
 			else
 				running = false;
@@ -114,16 +115,14 @@ bool Producer::ReadSharedInformation()
 
 	
 	SharedData::SharedInformation* temp;
-	temp = (SharedData::SharedInformation*)pInfobuf;
+	temp = (SharedData::SharedInformation*)this->messageBuffer->GetInfoBuffer()->vFileView;
 
 	if (temp->numProcesses != this->numProcesses) //if the information has changed
 	{
-		this->numProcesses = temp->numProcesses; //update the producers information
-		if (numProcesses == 0)					 //If the consumers disconnected
+		this->numProcesses = temp->numProcesses;  //update the producers information
+		if (numProcesses == 0)					  //If the consumers disconnected
 			std::cout << "No Consumers connected" << std::endl;
 	}
-
-
 	return true;
 }
 
@@ -145,69 +144,89 @@ Producer::Producer(CommandArgs arguments)
 
 
 	bool errorflag = false;
+
+
+
+
+
+try{
+	messageBuffer = std::unique_ptr<SharedMemory::CircleBuffer>(new SharedMemory::CircleBuffer(arguments,GetFileName(Files::MessageFile), GetFileName(Files::InformationFile)));
+}
+catch(...)
+{
+	errorflag = true;
+}
+
+
+
+
+
+
+
+
 #pragma region Create file and mapping
-	this->hMsgMapFile = CreateFileMapping(
-		INVALID_HANDLE_VALUE,	//Instead of a file in the system, we use a system paging file
-		NULL,					//No extra attributes (default)
-		PAGE_READWRITE,			//specifies the protection, all the views to the file need to på compatible with this!
-		0,
-		(arguments.memorySize * 1000000), //convert to megabyte
-		GetFileName(Files::MessageFile)
-		);
-
-	if (hMsgMapFile == NULL)
-	{
-		_tprintf(TEXT("FAILED!"));
-		errorflag = true;
-		DebugBreak();
-	}
-
-	pMsgbuf = (LPTSTR)MapViewOfFile(hMsgMapFile,
-		FILE_MAP_ALL_ACCESS,
-		0,
-		0,
-		arguments.memorySize* 1 << 20);
-
-	if (pMsgbuf == NULL)
-	{
-		_tprintf(TEXT("FAILED!"));
-		errorflag = true;
-		DebugBreak();
-	}
-
-
-
-
-	this->hInfoMapFile = CreateFileMapping(
-		INVALID_HANDLE_VALUE,	//Instead of a file in the system, we use a system paging file
-		NULL,					//No extra attributes (default)
-		PAGE_READWRITE,			//specifies the protection, all the views to the file need to på compatible with this!
-		0,
-		sizeof(SharedData::SharedInformation),
-		GetFileName(Files::InformationFile)
-		);
-
-	if (hInfoMapFile == NULL)
-	{
-		MessageBox(GetConsoleWindow(), TEXT("Error when mapping file view"), TEXT("error"), MB_OK);
-		_tprintf(TEXT("FAILED!"));
-		errorflag = true;
-		DebugBreak();
-	}
-
-
-	pInfobuf = (LPTSTR)MapViewOfFile(hInfoMapFile,
-		FILE_MAP_ALL_ACCESS,
-		0,
-		0,
-		sizeof(SharedData::SharedInformation));
-
-	if (pInfobuf == NULL)
-	{
-		_tprintf(TEXT("FAILED!"));
-		errorflag = true;
-		DebugBreak();
-	}
+//this->hMsgMapFile = CreateFileMapping(
+//	INVALID_HANDLE_VALUE,	//Instead of a file in the system, we use a system paging file
+//	NULL,					//No extra attributes (default)
+//	PAGE_READWRITE,			//specifies the protection, all the views to the file need to på compatible with this!
+//	0,
+//	(arguments.memorySize * 1 << 20), //convert to megabyte
+//	GetFileName(Files::MessageFile)
+//	);
+//
+//if (hMsgMapFile == NULL)
+//{
+//	_tprintf(TEXT("FAILED!"));
+//	errorflag = true;
+//	DebugBreak();
+//}
+//
+//pMsgbuf = (LPTSTR)MapViewOfFile(hMsgMapFile,
+//	FILE_MAP_ALL_ACCESS,
+//	0,
+//	0,
+//	arguments.memorySize* 1 << 20);
+//
+//if (pMsgbuf == NULL)
+//{
+//	_tprintf(TEXT("FAILED!"));
+//	errorflag = true;
+//	DebugBreak();
+//}
+//
+//
+//
+//
+//this->hInfoMapFile = CreateFileMapping(
+//	INVALID_HANDLE_VALUE,	//Instead of a file in the system, we use a system paging file
+//	NULL,					//No extra attributes (default)
+//	PAGE_READWRITE,			//specifies the protection, all the views to the file need to på compatible with this!
+//	0,
+//	sizeof(SharedData::SharedInformation),
+//	GetFileName(Files::InformationFile)
+//	);
+//
+//if (hInfoMapFile == NULL)
+//{
+//	MessageBox(GetConsoleWindow(), TEXT("Error when mapping file view"), TEXT("error"), MB_OK);
+//	_tprintf(TEXT("FAILED!"));
+//	errorflag = true;
+//	DebugBreak();
+//}
+//
+//
+//pInfobuf = (LPTSTR)MapViewOfFile(hInfoMapFile,
+//	FILE_MAP_ALL_ACCESS,
+//	0,
+//	0,
+//	sizeof(SharedData::SharedInformation));
+//
+//if (pInfobuf == NULL)
+//{
+//	_tprintf(TEXT("FAILED!"));
+//	errorflag = true;
+//	DebugBreak();
+//}
 
 
 
@@ -220,18 +239,8 @@ Producer::Producer(CommandArgs arguments)
 #pragma endregion
 
 
-#pragma region Create Mutex
+#pragma region Create Mutexes
 	
-
-//hMsgMutex = CreateMutex(
-//		NULL,
-//		FALSE,
-//		this->GetMutexName(Files::MessageFile));
-//	if (hMsgMutex == NULL)
-//	{
-//		errorflag = true;
-//		MessageBox(NULL, TEXT("Error creating mutex")+ GetLastError(), TEXT("CRY"), MB_OK);
-//	}
 	try {
 
 		msgMutex = std::unique_ptr<SharedMemory::SharedMutex> (new SharedMemory::SharedMutex(this->GetMutexName(Files::MessageFile)));
@@ -240,23 +249,8 @@ Producer::Producer(CommandArgs arguments)
 	catch (...)
 	{
 		MessageBox(GetConsoleWindow(), TEXT("error creating the mutexes"), TEXT("ERROR"), MB_OK);
+		errorflag = true;
 	}
-
-	//hInfoMutex = CreateMutex(
-	//	NULL,
-	//	FALSE,
-	//	this->GetMutexName(Files::InformationFile));
-	//if (hInfoMutex == NULL)
-	//{
-	//	errorflag = true;
-	//	MessageBox(NULL, TEXT("Error creating mutex") + GetLastError(), TEXT("CRY"), MB_OK);
-	//}
-
-
-		//set the information in the infoMemory to zero
-		SharedData::SharedInformation temp;
-		memcpy((PVOID)pInfobuf, &temp, sizeof(SharedData::SharedInformation));
-
 #pragma endregion
 
 		errorflag = this->SetUpEventHandling(errorflag);

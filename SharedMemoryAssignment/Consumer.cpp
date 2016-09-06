@@ -14,10 +14,12 @@ DWORD Consumer::ReadFromMemory()
 	switch (waitResult)
 	{
 		// Event object was signaled
+		int* pMsgbuf;
 	case WAIT_OBJECT_0:
 		//
 		// TODO: Read from the shared buffer
-			std::cout << (int)*pMsgbuf << std::endl;
+			pMsgbuf = (int*)this->messageBuffer->GetMessageBuffer()->vFileView;
+			std::cout << *pMsgbuf << std::endl;
 	#pragma region Wait for mutex control then attempt to read
 	
 
@@ -74,8 +76,17 @@ bool Consumer::SetUpEventHandling(bool errorflag)
 		);
 	if (hWriteEvent == NULL)
 	{
-		MessageBox(NULL, TEXT("Could not init writeEvent"), TEXT("Abandon hope"), MB_OK);
-		errorflag = true;
+		hWriteEvent = CreateEvent(
+			NULL,				 //default security attr
+			TRUE,				 //manual reset event
+			FALSE,			     // non signaled when initializing
+			GetWriteEventName()  // name
+			);
+		if (hWriteEvent == NULL)
+		{
+			MessageBox(NULL, TEXT("Could not init writeEvent"), TEXT("Abandon hope"), MB_OK);
+			errorflag = true;
+		}
 	}
 
 	
@@ -93,74 +104,20 @@ void Consumer::HandleEvents()
 }
 
 
-Consumer::Consumer(CommandArgs commands)
+Consumer::Consumer(CommandArgs arguments)
 {
-	bool error = false;
+	bool errorflag = false;
 
- #pragma region Create file view and open mapping
 
-	hMsgMapFile = OpenFileMapping(
-		FILE_MAP_ALL_ACCESS,
-		FALSE,
-		(LPWSTR)GetFileName(Files::MessageFile));
-	if (hMsgMapFile == NULL) //if there is no file created
-	{
-		int answer = 0;
-		do {
-			answer = MessageBox(GetConsoleWindow(), TEXT("Could not find the file. Make sure a producer is running"), TEXT("No File found"), MB_RETRYCANCEL);
-			if (answer == IDRETRY)
-			{
-				hMsgMapFile = OpenFileMapping(
-					FILE_MAP_ALL_ACCESS,
-					FALSE,
-					GetFileName(Files::MessageFile));
-				if (hMsgMapFile != NULL)
-					break;
-			}
+ #pragma region Open mapping and create file view 
 
-		} while (answer != IDCANCEL);
+	try {
+		messageBuffer = std::unique_ptr<SharedMemory::CircleBuffer>(new SharedMemory::CircleBuffer(arguments, GetFileName(Files::MessageFile), GetFileName(Files::InformationFile)));
 	}
-	if (hMsgMapFile != NULL) // if the file was found when clicking retry or on the first try
+	catch (...)
 	{
-
-
-		pMsgbuf = (LPTSTR)MapViewOfFile(hMsgMapFile,
-			FILE_MAP_ALL_ACCESS,
-			0,
-			0,
-			commands.memorySize * 1000000);
-		if (pMsgbuf == NULL)
-		{
-			MessageBox(GetConsoleWindow(), TEXT("Error when mapping file view"), TEXT("error"), MB_OK);
-			error = true;
-		}
-
-
-
-		hInfoMapFile = OpenFileMapping(
-			FILE_MAP_ALL_ACCESS,
-			FALSE,
-			(LPWSTR)GetFileName(Files::InformationFile));
-
-		if (hInfoMapFile == NULL)
-			error = true;
-
-		pInfobuf = (LPTSTR)MapViewOfFile(hInfoMapFile,
-			FILE_MAP_ALL_ACCESS,
-			0,
-			0,
-			sizeof(SharedData::SharedInformation));
-		if (pInfobuf == NULL)
-		{
-			MessageBox(GetConsoleWindow(), TEXT("Error when mapping file view"), TEXT("error"), MB_OK);
-			error = true;
-		}
-
-
-
-
-
-
+		errorflag = true;
+	}
 
 #pragma endregion
 
@@ -168,28 +125,27 @@ Consumer::Consumer(CommandArgs commands)
 
 
 	try {	//Create the  mutexes
-			msgMutex = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::MessageFile)));
+			msgMutex  = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::MessageFile)));
 			infoMutex = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::InformationFile)));
 		}
 		catch (...)
 		{
 			MessageBox(GetConsoleWindow(), TEXT("error creating the mutexes"), TEXT("ERROR"), MB_OK);
+			errorflag = true;
 		}
 
 #pragma endregion
 
 
-		error = SetUpEventHandling(error);
+		errorflag = SetUpEventHandling(errorflag);
 
-		if (error == false)
+		if (errorflag == false)
 		{
-		
-
 			//Get the info file, wait for the mutex. then add a counter to the "numProcesses" variable
 			if (infoMutex->Lock(INFINITE))
 			{
 				SharedData::SharedInformation *temp;
-				temp = (SharedData::SharedInformation*)pInfobuf;
+				temp = (SharedData::SharedInformation*)this->messageBuffer->GetInfoBuffer()->vFileView;
 				temp->numProcesses += 1; // increment numProcesses in the shared memory
 
 				infoMutex->Unlock();
@@ -200,12 +156,12 @@ Consumer::Consumer(CommandArgs commands)
 			running = false; //if there was any error in the process
 
 #pragma endregion
-	}
-	else
-	{
-		//if the filemap is NULL and user didnt want to retry
-		running = false;
-	}
+	//}
+	//else
+	//{
+	//	//if the filemap is NULL and user didnt want to retry
+	//	running = false;
+	//}
 }
 
 Consumer::Consumer()
@@ -222,7 +178,7 @@ Consumer::~Consumer()
 	{
 		if (infoMutex->Lock(INFINITE))
 		{
-			SharedData::SharedInformation* temp = (SharedData::SharedInformation*)pInfobuf;
+			SharedData::SharedInformation* temp = (SharedData::SharedInformation*)this->messageBuffer->GetInfoBuffer()->vFileView;
 			temp->numProcesses -= 1;
 
 			infoMutex->Unlock();
