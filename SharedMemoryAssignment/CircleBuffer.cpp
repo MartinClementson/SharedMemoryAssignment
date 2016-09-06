@@ -3,15 +3,6 @@
 using namespace SharedMemory;
 
 
-size_t CircleBuffer::CanRead()
-{
-	return size_t();
-}
-
-size_t CircleBuffer::CanWrite()
-{
-	return size_t();
-}
 
 
 
