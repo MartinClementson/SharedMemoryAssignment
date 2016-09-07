@@ -18,7 +18,10 @@ DWORD Producer::WriteToMemory(SharedData::SharedMessage* msg)
 		//Mutex is ours
 		PVOID pMsgbuf = (PVOID) this->messageBuffer->GetMessageBuffer()->vFileView;
 		ZeroMemory(pMsgbuf, 10);
-		//messageBuffer->Push(msg,sizeof(SharedData::MesssageHeader) + localMsg->header.length)
+
+		SharedData::SharedMessage* ptr = localMsg.get();
+		messageBuffer->Push(localMsg->message , sizeof(SharedData::MesssageHeader) + localMsg->header.length);
+		//messageBuffer->Push((char*)msg,sizeof(SharedData::MesssageHeader) + localMsg->header.length);
 		//memcpy(pMsgbuf, &number, sizeof(int));
 
 		msgMutex->Unlock(); //release the mutex
@@ -48,9 +51,13 @@ bool Producer::Exec()
 				{
 					if (sessionInfo.MessagesToSend()) //if there are messages to send
 					{
+
 						cout << "\n\n\n \t\tMESSAGE NUMBER :" << sessionInfo.messagesSent + 1 << "\n\n";
 						this->GenerateRndMessage();
-
+						cout << localMsg->message << endl;
+						cout << localMsg->message << endl;
+						cout << localMsg->message << endl;
+						cout << localMsg->message << endl;
 						if (WriteToMemory(localMsg.get()) == FALSE)
 						{
 							MessageBox(GetConsoleWindow(), TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
@@ -63,11 +70,11 @@ bool Producer::Exec()
 						}
 					}
 					else {
-						std::cout << "All messages have been sent.. Exiting application" << std::endl;
+						//std::cout << "All messages have been sent.. Exiting application" << std::endl;
 						#ifdef DEBUG
 						Sleep(2000);
 						#endif // DEBUG
-						running = false;
+						//running = false;
 					}
 				}
 			}
@@ -90,27 +97,29 @@ void Producer::GenerateRndMessage()
 	if (sessionInfo.random) //create a random sized message (NOT bigger than a quarter of fileSize)
 	{
 		size_t fileSize = messageBuffer->GetMessageBuffer()->fileSize;
-		msgSize = rand() % ((fileSize / 10/*4*/) - sizeof(SharedData::MesssageHeader)) + 1; // random between (1 - fileSize/4 - header)
+		//msgSize = rand() % ((fileSize / 4) - sizeof(SharedData::MesssageHeader)) + 1; // random between (1 - fileSize/4 - header)
+	
+		msgSize = rand() % 8 + 1; //temp
 	}
 	else
 		msgSize = sessionInfo.msgSize;
-
+	size_t hej = sizeof(charArray);
 	
 	if (msgSize > maxMessageLen) // i later preallocated localMsg->message to the maximum possible, this if statement should not be executed, but you never know for sure
 	{
-		MessageBox(GetConsoleWindow(), TEXT("msgSize is larger than maxMessageLength"), TEXT("Func: GenerateRmdMessage"),MB_OK);
+		MessageBox(GetConsoleWindow(), TEXT("msgSize is larger than maxMessageLength"), TEXT("Func: GenerateRndMessage"),MB_OK);
 		msgSize = maxMessageLen;
 	}
 	
-	for (size_t i = 0; i < msgSize; i++)
+	for (size_t i = 0; i < msgSize; i++) // fill the message with random characters
 	{
 		localMsg->message[i] =  charArray[rand() % (sizeof(charArray) - 1)]; //-1 to remove the \0
 
 	}
 	
-	localMsg->message[msgSize-1]		= '\0';
+	localMsg->message[msgSize]	= '\0';
 	localMsg->header.msgId			= sessionInfo.messagesGenerated;
-	localMsg->header.length			= msgSize;
+	localMsg->header.length			= msgSize+1; //+1 for escapechar
 	localMsg->header.consumerQueue  = this->numProcesses;
 	sessionInfo.messagesGenerated  += 1;
 
@@ -184,6 +193,7 @@ Producer::Producer(CommandArgs& arguments)
 	localMsg			 = std::shared_ptr<SharedData::SharedMessage>(new SharedData::SharedMessage());
 	this->maxMessageLen  = (arguments.memorySize *(1 << 20)) / 4;
 	localMsg->message	 = new char[maxMessageLen]; //make it maximum size
+	memset(localMsg->message, '0', maxMessageLen);
 
 
 
@@ -225,7 +235,7 @@ if (!errorflag)
 
 	if (errorflag == true)
 		running = false;
-	GenerateRndMessage(); //TEMPORARY
+	
 }
 
 

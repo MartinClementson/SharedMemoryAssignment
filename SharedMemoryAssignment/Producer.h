@@ -30,16 +30,16 @@ class Producer : public SharedMemoryHandler
 		bool MessagesToSend()
 		{
 			if (this->messagesSent < this->numMessages)
-				return true; //there are messages to send
+				return true;  //there are messages to send
 			else
 				return false; //all messages have been sent
 		}
 	};
 
 private:
-	size_t maxMessageLen = 0;
+
 	SessionInfo sessionInfo;
-	std::shared_ptr<SharedData::SharedMessage> localMsg = nullptr;
+	
 	
 protected:
 	bool SetUpEventHandling(bool errorflag);

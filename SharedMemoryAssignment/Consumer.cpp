@@ -17,8 +17,14 @@ DWORD Consumer::ReadFromMemory()
 	case WAIT_OBJECT_0:
 		//
 		// TODO: Read from the shared buffer
-			pMsgbuf = (int*)this->messageBuffer->GetMessageBuffer()->vFileView;
-			std::cout << *pMsgbuf << std::endl;
+			//pMsgbuf = (int*)this->messageBuffer->GetMessageBuffer()->vFileView;
+		if(this->msgMutex->Lock(INFINITE));
+		{
+			this->messageBuffer->Pop(this->localMsg.get());
+			msgMutex->Unlock();
+		}
+			//printf("%s", localMsg->message);
+			//std::cout << *localMsg->message << std::endl;
 		break;
 
 		// An error occurred
@@ -72,6 +78,10 @@ void Consumer::HandleEvents()
 Consumer::Consumer(CommandArgs &arguments)
 {
 	bool errorflag = false;
+
+	localMsg				 = std::shared_ptr<SharedData::SharedMessage>(new SharedData::SharedMessage());
+	this->maxMessageLen		 = (arguments.memorySize *(1 << 20)) / 4;
+	localMsg->message		 = new char[maxMessageLen]; //make it maximum size
 
 
  #pragma region Open mapping and create file view 

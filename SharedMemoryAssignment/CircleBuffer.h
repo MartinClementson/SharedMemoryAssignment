@@ -23,15 +23,17 @@ namespace SharedMemory
 	class CircleBuffer
 	{
 	private:
+		size_t head = 0;
+		size_t tail = 0;
 		size_t chunkSize = 256;
 
 		shared_ptr<SharedMemory::SharedMemoryStruct> _MessageMem;
 		shared_ptr<SharedMemory::SharedMemoryStruct> _InfoMem;
 		
 	public:
-	bool Push(const void* msg, size_t length);
+	bool Push( void* msg, size_t length);
 	bool Pop(char* msg, size_t& length);
-
+	bool Pop(SharedData::SharedMessage* msg);
 		CircleBuffer();
 		bool Init(CommandArgs& info,
 			LPCWSTR msgBufferName,
