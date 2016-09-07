@@ -21,6 +21,9 @@ HANDLE closeEventHandle;
 
 int main(int argc, char* argv[])
 {
+	/* TODO
+	if custom message size
+	Check that the message size is not bigger than  a quarter of the total memory size*/
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
 	SetUpEvents();
@@ -128,7 +131,7 @@ CommandArgs ParseCommands(int* argc, char* argv[])
 
 BOOL WINAPI ConsoleHandler(DWORD CEvent)
 {
-	char mesg[128];
+	char msg[128];
 
 	switch (CEvent)
 	{

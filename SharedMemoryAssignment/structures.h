@@ -24,7 +24,7 @@ namespace SharedData
 		unsigned int head;  //head index
 		unsigned int tail;	//tail index
 
-		//buffer info here
+		
 	};
 
 	struct MesssageHeader
@@ -33,9 +33,15 @@ namespace SharedData
 		size_t msgId;
 		size_t length;
 
+	};
 
+	struct SharedMessage
+	{
+		MesssageHeader header;
+		void* message;
 	};
 }
+
 
 struct SharedCircleBuffer
 {

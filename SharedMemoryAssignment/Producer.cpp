@@ -30,21 +30,31 @@ bool Producer::Exec()
 	static int x = 0; //just some data to transfer
 	if (running)
 	{
-
-			HandleEvents(); //check for events
-			Sleep(500);
-			if (ReadSharedInformation()) //if the information was read successfully
+			HandleEvents();						//check for events
+			Sleep((DWORD)sessionInfo.msDelay);  //delay specified by the user
+			if (ReadSharedInformation())		//if the information was read successfully
 			{
-
 				if (this->numProcesses > 0) //If there are any consumers
 				{
-
-					if (WriteToMemory(x) == FALSE)
+					if (sessionInfo.MessagesToSend()) //if there are messages to send
 					{
-						MessageBox(GetConsoleWindow(), TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
+						if (WriteToMemory(x) == FALSE)
+						{
+							MessageBox(GetConsoleWindow(), TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
+							running = false;
+						}
+						else {
+							sessionInfo.messagesSent += 1;
+							x++;
+						}
+					}
+					else {
+						std::cout << "All messages have been sent.. Exiting application" << std::endl;
+						#ifdef DEBUG
+						Sleep(2000);
+						#endif // DEBUG
 						running = false;
 					}
-					x++;
 				}
 			}
 			else
@@ -55,7 +65,19 @@ bool Producer::Exec()
 	else
 		return false;
 
-} 
+}
+
+SharedData::SharedMessage Producer::GenerateRndMessage()
+{
+	static const char charArray[] =
+		"abcdefghijklmnopqrstuvxyz"
+		"ABCDEFGHIJKLMNOPQRSTUVXYZ"
+		"123456789";
+
+	if(sessionInfo.random)
+
+	return SharedData::SharedMessage();
+}
 
 bool Producer::SetUpEventHandling(bool errorflag)
 {
@@ -115,6 +137,10 @@ Producer::Producer()
 Producer::Producer(CommandArgs& arguments)
 {
 
+	
+
+	GenerateRndMessage();
+	this->sessionInfo = SessionInfo(arguments); //store the arguments into a struct
 	bool errorflag  = false;
 
 	
