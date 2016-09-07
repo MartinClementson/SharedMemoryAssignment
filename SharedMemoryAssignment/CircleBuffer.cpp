@@ -33,6 +33,16 @@ bool SharedMemory::CircleBuffer::Init(CommandArgs & info, LPCWSTR msgBufferName,
 	return true;
 }
 
+bool SharedMemory::CircleBuffer::Push(const void * msg, size_t length)
+{
+	return false;
+}
+
+bool SharedMemory::CircleBuffer::Pop(char * msg, size_t & length)
+{
+	return false;
+}
+
 CircleBuffer::CircleBuffer()
 {
 	

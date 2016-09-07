@@ -37,7 +37,9 @@ class Producer : public SharedMemoryHandler
 	};
 
 private:
+	size_t maxMessageLen = 0;
 	SessionInfo sessionInfo;
+	std::shared_ptr<SharedData::SharedMessage> localMsg = nullptr;
 	
 protected:
 	bool SetUpEventHandling(bool errorflag);
@@ -49,10 +51,10 @@ public:
 	Producer();
 	Producer(CommandArgs& arguments);
 	~Producer();
-	DWORD WriteToMemory(int number);
+	DWORD WriteToMemory(SharedData::SharedMessage* msg);
 	bool Exec();
 
 private:
-	SharedData::SharedMessage GenerateRndMessage();
+	void GenerateRndMessage();
 };
 

@@ -2,7 +2,7 @@
 #include <Windows.h>
 #include <string>
 
-#define CLOSE_EVENT_NAME (LPCWSTR)TEXT("Local\CloseEvent")
+#define CLOSE_EVENT_NAME (LPCWSTR)TEXT("CloseEvent")
 
 struct CommandArgs
 {
@@ -33,12 +33,32 @@ namespace SharedData
 		size_t msgId;
 		size_t length;
 
+		void Flush()
+		{
+			consumerQueue = 0;
+			msgId		  = 0;
+			length		  = 0;
+		}
+
 	};
 
 	struct SharedMessage
 	{
 		MesssageHeader header;
-		void* message;
+		char* message = nullptr;
+		SharedMessage() {};
+		~SharedMessage()
+		{
+			if (message != nullptr)
+				delete message;
+				
+		}
+		void Flush()
+		{
+			//memset(this->message, '0', header.length);
+			header.Flush();
+
+		}
 	};
 }
 
