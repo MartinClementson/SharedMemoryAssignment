@@ -3,6 +3,7 @@
 #include <string>
 #include <stdlib.h>
 #include <iostream>
+#include <time.h>
 
 
 class Producer : public SharedMemoryHandler

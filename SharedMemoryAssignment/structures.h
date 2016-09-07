@@ -84,14 +84,14 @@ namespace SharedMemory
 {
 
 	struct SharedMemoryStruct {
-	
-		HANDLE	hFileMap = NULL;
-		LPCTSTR vFileView = NULL;
+		size_t fileSize		= 0;
+		HANDLE	hFileMap	= NULL;
+		LPCTSTR vFileView	= NULL;
 		SharedMemoryStruct() {};
 	
 		bool Init(CommandArgs* info, LPCWSTR bufferName)
 		{
-			
+			this->fileSize = size_t(info->memorySize);
 			//try opening it first
 			this->hFileMap = OpenFileMapping(
 				FILE_MAP_ALL_ACCESS,

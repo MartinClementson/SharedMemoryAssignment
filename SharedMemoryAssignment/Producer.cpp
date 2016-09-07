@@ -74,7 +74,32 @@ SharedData::SharedMessage Producer::GenerateRndMessage()
 		"ABCDEFGHIJKLMNOPQRSTUVXYZ"
 		"123456789";
 
-	if(sessionInfo.random)
+	SharedData::SharedMessage msg;
+	msg.header.msgId = sessionInfo.messagesGenerated;
+	sessionInfo.messagesGenerated += 1;
+
+	size_t msgSize = 1;
+	if (sessionInfo.random) //create a random sized message (NOT bigger than a quarter of fileSize)
+	{
+		size_t fileSize = messageBuffer->GetMessageBuffer()->fileSize;
+		msgSize = rand() % ((fileSize / 4) - sizeof(SharedData::MesssageHeader)) + 1; // random between (1 - fileSize/4 - header)
+	}
+	else
+		msgSize = sessionInfo.msgSize;
+
+	char* messageContent = new char[msgSize]; //not optimal..
+	for (size_t i = 0; i < msgSize; i++)
+	{
+		messageContent[i] = charArray[rand() % sizeof(charArray)];
+
+	}
+
+	/*
+		TODO:
+		add \0 at end
+		cpy messageContent
+		delete messageContent
+	*/
 
 	return SharedData::SharedMessage();
 }
@@ -138,8 +163,8 @@ Producer::Producer(CommandArgs& arguments)
 {
 
 	
-
-	GenerateRndMessage();
+	srand(time(NULL));
+	GenerateRndMessage(); //TEMPORARY
 	this->sessionInfo = SessionInfo(arguments); //store the arguments into a struct
 	bool errorflag  = false;
 
