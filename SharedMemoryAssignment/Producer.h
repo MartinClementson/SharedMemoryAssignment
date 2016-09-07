@@ -12,6 +12,7 @@ class Producer : public SharedMemoryHandler
 	struct SessionInfo
 	{
 		unsigned int numMessages  = 0;
+		unsigned int messagesGenerated = 0; //used to keep track of message ids,
 		unsigned int messagesSent = 0;
 		bool random				  = false;
 		unsigned int msgSize	  = 0;

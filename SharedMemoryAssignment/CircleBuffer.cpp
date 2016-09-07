@@ -10,7 +10,7 @@ bool SharedMemory::CircleBuffer::Init(CommandArgs & info, LPCWSTR msgBufferName,
 {
 	SharedMemoryStruct* tempMessage	= new SharedMemoryStruct(); //this was a way of handling the deletion of memory if the init failed
 
-	info.memorySize *= (1 << 20);//convert to megabyte
+	info.memorySize *= (1 << 20);//convert to bytes!
 	if (!tempMessage->Init(&info, msgBufferName))
 	{
 		delete tempMessage;
