@@ -115,6 +115,15 @@ Producer::Producer()
 Producer::Producer(CommandArgs& arguments)
 {
 
+	bool errorflag  = false;
+
+	
+	messageBuffer	= std::unique_ptr<SharedMemory::CircleBuffer>(new SharedMemory::CircleBuffer());
+	if (!messageBuffer->Init(arguments, GetFileName(Files::MessageFile), GetFileName(Files::InformationFile)))
+		errorflag   = true;
+
+
+
 	/*
 		We have two shared memory files.
 		One is for the messages.
@@ -123,12 +132,6 @@ Producer::Producer(CommandArgs& arguments)
 			
 	*/
 	
-	bool errorflag = false;
-
-	
-	messageBuffer = std::unique_ptr<SharedMemory::CircleBuffer>(new SharedMemory::CircleBuffer());
-	if (!messageBuffer->Init(arguments, GetFileName(Files::MessageFile), GetFileName(Files::InformationFile)))
-		errorflag = true;
 	
 
 #pragma region Create Mutexes

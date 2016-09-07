@@ -98,7 +98,7 @@ namespace SharedMemory
 					NULL,					//No extra attributes (default)
 					PAGE_READWRITE,			//specifies the protection, all the views to the file need to på compatible with this!
 					0,
-					info->memorySize, //convert to megabyte
+					info->memorySize,	 // unsigned int
 					bufferName
 					);
 	

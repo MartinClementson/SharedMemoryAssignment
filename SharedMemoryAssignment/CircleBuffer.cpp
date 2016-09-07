@@ -17,7 +17,7 @@ bool SharedMemory::CircleBuffer::Init(CommandArgs & info, LPCWSTR msgBufferName,
 		return false;
 	}
 		 
-	info.memorySize					= sizeof(SharedData::SharedInformation); //change the memory for the message buffer,
+	info.memorySize					= sizeof(SharedData::SharedInformation); //change the memory size for the info buffer,
 	SharedMemoryStruct* tempInfo	= new SharedMemoryStruct();
 	if (!tempInfo->Init(&info, infoBufferName))
 	{
@@ -29,10 +29,7 @@ bool SharedMemory::CircleBuffer::Init(CommandArgs & info, LPCWSTR msgBufferName,
 	
 	_MessageMem = std::shared_ptr<SharedMemoryStruct>(tempMessage);			//put them into the shared ptr
 	_InfoMem    = std::shared_ptr<SharedMemoryStruct>(tempInfo);			//put them into the shared ptr
-		
 	
-
-
 	return true;
 }
 
