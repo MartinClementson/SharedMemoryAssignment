@@ -90,10 +90,10 @@ SharedData::SharedMessage Producer::GenerateRndMessage()
 	char* messageContent = new char[msgSize]; //not optimal..
 	for (size_t i = 0; i < msgSize; i++)
 	{
-		messageContent[i] = charArray[rand() % sizeof(charArray)];
+		messageContent[i] = charArray[rand() % (sizeof(charArray)-1)];
 
 	}
-
+	messageContent[msgSize] = char("\0"); 
 	/*
 		TODO:
 		add \0 at end
@@ -164,8 +164,8 @@ Producer::Producer(CommandArgs& arguments)
 
 	
 	srand(time(NULL));
-	GenerateRndMessage(); //TEMPORARY
 	this->sessionInfo = SessionInfo(arguments); //store the arguments into a struct
+	GenerateRndMessage(); //TEMPORARY
 	bool errorflag  = false;
 
 	
