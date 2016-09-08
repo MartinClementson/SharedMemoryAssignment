@@ -15,16 +15,14 @@ DWORD Consumer::ReadFromMemory()
 		// Event object was signaled
 		int* pMsgbuf;
 	case WAIT_OBJECT_0:
-		//
 		// TODO: Read from the shared buffer
-			//pMsgbuf = (int*)this->messageBuffer->GetMessageBuffer()->vFileView;
+			
 		if(this->msgMutex->Lock(INFINITE));
 		{
 			this->messageBuffer->Pop(this->localMsg.get());
 			msgMutex->Unlock();
 		}
-			//printf("%s", localMsg->message);
-			//std::cout << *localMsg->message << std::endl;
+			
 		break;
 
 		// An error occurred
