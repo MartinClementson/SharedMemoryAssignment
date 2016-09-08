@@ -20,7 +20,10 @@ DWORD Producer::WriteToMemory(SharedData::SharedMessage* msg)
 		ZeroMemory(pMsgbuf, 10);
 
 		SharedData::SharedMessage* ptr = localMsg.get();
-		messageBuffer->Push(localMsg->message , sizeof(SharedData::MesssageHeader) + localMsg->header.length);
+		//messageBuffer->Push(&localMsg->header, sizeof(SharedData::MesssageHeader)); //write header
+		//messageBuffer->Push(msg->message, localMsg->header.length + padding);
+		messageBuffer->Push(localMsg.get());
+
 		//messageBuffer->Push((char*)msg,sizeof(SharedData::MesssageHeader) + localMsg->header.length);
 		//memcpy(pMsgbuf, &number, sizeof(int));
 

@@ -1,5 +1,6 @@
 #include "CircleBuffer.h"
 #include <iostream>
+#include <assert.h>
 using namespace SharedMemory;
 
 
@@ -35,21 +36,34 @@ bool SharedMemory::CircleBuffer::Init(CommandArgs & info, LPCWSTR msgBufferName,
 
 bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 {
-	
+	/*maybe do padding here. but we don't need it if we're writing a header,*/
+
+
 	///*todo  : make a check if i can write.*/
 	memcpy((LPVOID)_MessageMem->vFileView /*+ head*/, (char*)msg, length);
 
-	SharedData::SharedMessage tempMsg;
+	return true;
+}
 
-	memcpy(&tempMsg.header,(char*)_MessageMem->vFileView, sizeof(SharedData::MesssageHeader));
-	tempMsg.message = new char[length];
-	char* print = (char*)msg;
-	memcpy(tempMsg.message, (char*)_MessageMem->vFileView + sizeof(SharedData::MesssageHeader), length -sizeof(SharedData::MesssageHeader));
-	
-	std::cout << "THIS IS THE READ MESSAGE :";
-	std::cout << (char*)_MessageMem->vFileView << std::endl;
-	
-	//std::cout << tempMsg.message << std::endl; 
+bool SharedMemory::CircleBuffer::Push(SharedData::SharedMessage * msg)
+{
+	//calculate padding
+	size_t offset  = msg->header.length % chunkSize;
+	size_t padding = chunkSize - offset;
+
+	assert((msg->header.length + padding) % chunkSize == 0); //just to make sure i've done it right
+
+	///*todo  : make a check if i can write.*/
+	memcpy(
+		(char*)_MessageMem->vFileView + head, 
+		(char*)&msg->header,
+		sizeof(SharedData::MesssageHeader));
+
+	memcpy(
+		(char*)_MessageMem->vFileView + head + sizeof(SharedData::MesssageHeader)
+		, msg->message
+		, msg->header.length + padding);
+
 	return true;
 }
 
@@ -61,17 +75,22 @@ bool SharedMemory::CircleBuffer::Pop(char * msg, size_t & length)
 bool SharedMemory::CircleBuffer::Pop(SharedData::SharedMessage * msg)
 {
 
+	//copy header
+	memcpy(&msg->header,(char*)_MessageMem->vFileView + tail,
+		sizeof(SharedData::MesssageHeader));
 	
-//memcpy(&msg->header,(char*)_MessageMem->vFileView + tail, sizeof(SharedData::MesssageHeader));
-//size_t readOffset = tail + sizeof(SharedData::MesssageHeader);
-//memcpy(msg->message, (char*)_MessageMem->vFileView + readOffset, msg->header.length);
-//
-//std::cout << msg->message << std::endl;
-	//SharedData::SharedInformation* info = (SharedData::SharedInformation*)_InfoMem->vFileView;
+	size_t readOffset = tail + sizeof(SharedData::MesssageHeader);
+	//copy message
+	memcpy(msg->message,
+		(char*)_MessageMem->vFileView + readOffset, 
+		msg->header.length);
+	//
+	std::cout << msg->message << std::endl;
+		
 
-	////calculate padding
-	//size_t offset = msg->header.length % 256;
-	//size_t padding = 256 - offset;
+	//calculate padding
+	size_t offset = msg->header.length % chunkSize; //this can be dangerous if producer uses another chunk size!
+	size_t padding = chunkSize - offset;
 
 	//if (info->numProcesses == 1) // that means this client is the last one
 	//{

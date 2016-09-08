@@ -16,7 +16,7 @@ namespace SharedMemory
 		Known problems:
 
 		if a consumer reads from the buffer, and the producer disconnects. The consumer will wait for the write event
-		in eternity
+		in eternity. Remove write event!!
 	*/
 
 
@@ -32,6 +32,7 @@ namespace SharedMemory
 		
 	public:
 	bool Push( void* msg, size_t length);
+	bool Push(SharedData::SharedMessage* msg);
 	bool Pop(char* msg, size_t& length);
 	bool Pop(SharedData::SharedMessage* msg);
 		CircleBuffer();
