@@ -13,8 +13,8 @@ DWORD Producer::WriteToMemory(SharedData::SharedMessage* msg)
 	assert((msg->header.length + padding) % 256 == 0);
 
 	
-	if(msgMutex->Lock(INFINITE))
-	{
+	//if(msgMutex->Lock(INFINITE))
+	//{
 		//Mutex is ours
 		PVOID pMsgbuf = (PVOID) this->messageBuffer->GetMessageBuffer()->vFileView;
 		ZeroMemory(pMsgbuf, 10);
@@ -27,13 +27,13 @@ DWORD Producer::WriteToMemory(SharedData::SharedMessage* msg)
 		//messageBuffer->Push((char*)msg,sizeof(SharedData::MesssageHeader) + localMsg->header.length);
 		//memcpy(pMsgbuf, &number, sizeof(int));
 
-		msgMutex->Unlock(); //release the mutex
+		//msgMutex->Unlock(); //release the mutex
 
 		if (!SetEvent(this->hWriteEvent))	//Signal that the writing is done!
 			MessageBox(NULL, TEXT("COULD NOT Trigger Write event!"), TEXT("DANGER"), MB_OK);
 		else
 			ResetEvent(this->hWriteEvent);		//Reset the signal directly after it has been sent out!
-	}
+	//}
 
 				std::cout<< "Amount of consumers " << this->numProcesses << std::endl;
 			
@@ -172,9 +172,9 @@ bool Producer::ReadSharedInformation()
 	SharedData::SharedInformation* temp;
 	temp = (SharedData::SharedInformation*)this->messageBuffer->GetInfoBuffer()->vFileView;
 
-	if (temp->numProcesses != this->numProcesses) //if the information has changed
+	if (temp->clients != this->numProcesses) //if the information has changed
 	{
-		this->numProcesses = temp->numProcesses;  //update the producers information
+		this->numProcesses = temp->clients;  //update the producers information
 		if (numProcesses == 0)					  //If the consumers disconnected
 			std::cout << "No Consumers connected" << std::endl;
 	}
@@ -202,7 +202,12 @@ Producer::Producer(CommandArgs& arguments)
 
 
 	messageBuffer	= std::unique_ptr<SharedMemory::CircleBuffer>(new SharedMemory::CircleBuffer());
-	if (!messageBuffer->Init(arguments, GetFileName(Files::MessageFile), GetFileName(Files::InformationFile)))
+	if (!messageBuffer->Init(arguments, 
+		GetFileName (Files::MessageFile),	   //msg buffer
+		GetMutexName(Files::MessageFile),	   //msg buffer
+		GetFileName (Files::InformationFile),  //info/controller buffer
+		GetMutexName(Files::InformationFile)   //info/controller buffer
+		))
 		errorflag   = true;
 
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "structures.h"
+#include "SharedMutex.h"
 #include <Windows.h>
 #include <memory>
 #include <string>
@@ -23,13 +24,22 @@ namespace SharedMemory
 	class CircleBuffer
 	{
 	private:
-		size_t head = 0;
-		size_t tail = 0;
-		size_t chunkSize = 256;
+		size_t*  shared_head		= 0;
+		size_t*  shared_tail		= 0;
+		size_t* freeMem;
+
+		size_t  local_tail			= 0;
+		size_t	messagesSent		= 0; // using this as an id system would need rework if it was to support multiple producers
+		size_t	messagesRecieved	= 0;
+		size_t chunkSize			= 256;
 
 		shared_ptr<SharedMemory::SharedMemoryStruct> _MessageMem;
 		shared_ptr<SharedMemory::SharedMemoryStruct> _InfoMem;
+
+		std::unique_ptr<SharedMemory::SharedMutex> msgMutex;  // mutex											 
+		std::unique_ptr<SharedMemory::SharedMutex> infoMutex; // mutex
 		
+	
 	public:
 	bool Push( void* msg, size_t length);
 	bool Push(SharedData::SharedMessage* msg);
@@ -38,10 +48,13 @@ namespace SharedMemory
 		CircleBuffer();
 		bool Init(CommandArgs& info,
 			LPCWSTR msgBufferName,
-			LPCWSTR infoBufferName);
+			LPCWSTR msgMutexName,
+			LPCWSTR infoBufferName,
+			LPCWSTR infoMutexName);
 		void SetChunkSize(size_t size) { this->chunkSize = size; };
 		shared_ptr<SharedMemory::SharedMemoryStruct> GetMessageBuffer() { return _MessageMem; };
 		shared_ptr<SharedMemory::SharedMemoryStruct> GetInfoBuffer()	{ return _InfoMem;	  };
+	
 
 		virtual ~CircleBuffer();
 	};

@@ -7,7 +7,11 @@ using namespace SharedMemory;
 
 
 
-bool SharedMemory::CircleBuffer::Init(CommandArgs & info, LPCWSTR msgBufferName, LPCWSTR infoBufferName)
+bool SharedMemory::CircleBuffer::Init(CommandArgs& info,
+	LPCWSTR msgBufferName,
+	LPCWSTR msgMutexName,
+	LPCWSTR infoBufferName,
+	LPCWSTR infoMutexName)
 {
 	SharedMemoryStruct* tempMessage	= new SharedMemoryStruct(); //this was a way of handling the deletion of memory if the init failed
 
@@ -27,42 +31,125 @@ bool SharedMemory::CircleBuffer::Init(CommandArgs & info, LPCWSTR msgBufferName,
 		return false;
 	}
 
-	
 	_MessageMem = std::shared_ptr<SharedMemoryStruct>(tempMessage);			//put them into the shared ptr
 	_InfoMem    = std::shared_ptr<SharedMemoryStruct>(tempInfo);			//put them into the shared ptr
+	
+	
+	shared_head		= (size_t*)_InfoMem->vFileView;	  //Connect the pointers
+	shared_tail		= shared_head + 1;				  //Connect the pointers
+	freeMem			= shared_tail + 1;				  //Connect the pointers
+
+																			
+	//Create the mutexes
+	try {
+
+		msgMutex  = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(msgMutexName));
+		infoMutex = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(infoMutexName));
+	}
+	catch (...)
+	{
+		MessageBox(GetConsoleWindow(), TEXT("error creating the mutexes"), TEXT("ERROR"), MB_OK);
+		return false;
+	}
+
+
+	if (infoMutex->Lock(INFINITE))
+	{
+		SharedData::SharedInformation* temp = (SharedData::SharedInformation*) _InfoMem->vFileView;
+		if (temp->clients == 0) //if this is the first init
+			temp->freeMem  = _MessageMem->fileSize;
+	
+		temp->clients += 1;
+		
+		infoMutex->Unlock();
+	}
+
+	local_tail = 0;
+	messagesSent = 0;
+	messagesRecieved = 0;
+	
 	
 	return true;
 }
 
+
+
 bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 {
-	/*maybe do padding here. but we don't need it if we're writing a header,*/
+
+	//calculate padding
+	size_t offset = length % chunkSize;
+	size_t padding = chunkSize - offset;
+		assert((length + padding) % chunkSize == 0); //just to make sure i've done it right
+	
+	//first check if there is any available memory to write to
+	size_t totalMsgLen = length + sizeof(SharedData::MesssageHeader) + padding;
+
+	if (totalMsgLen <= *freeMem) // if there is room!	
+	{
+
+		/*	The if statements below are temporary. they handle the issue of reaching the end at the buffer
+		However, this needs to be changed in the future so that the message splits up instead and uses all the free memory!
+		*/
+		if (_MessageMem->fileSize - *shared_head < totalMsgLen) //if it doesent fit
+		{
+			if( *shared_tail >= totalMsgLen)					 // but if it fits at the beginning
+				if (infoMutex->Lock(INFINITE))
+				{
+					*shared_head = 0;	// move the head to start
+					infoMutex->Unlock();
+				}
+				else 
+					return false;
+
+		}
 
 
-	///*todo  : make a check if i can write.*/
-	memcpy((LPVOID)_MessageMem->vFileView /*+ head*/, (char*)msg, length);
+		SharedData::MesssageHeader header;
+		header.msgId = messagesSent++;
+		header.length = length;
+
+		SharedData::SharedInformation* temp = (SharedData::SharedInformation*) &_InfoMem->vFileView;
+
+		header.consumerQueue = temp->clients - 1; //exclude the client sending the message!
+
+		if (msgMutex->Lock(INFINITE))
+		{
+			memcpy((char*)_MessageMem->vFileView + *shared_head, (char*)&header, sizeof(SharedData::MesssageHeader));
+			memcpy((char*)_MessageMem->vFileView + *shared_head + sizeof(SharedData::MesssageHeader), (char*)msg, length + padding);
+			msgMutex->Unlock();
+		}
+		if (infoMutex->Lock(INFINITE))
+		{
+			*shared_head = *shared_head + totalMsgLen % _MessageMem->fileSize;
+			temp->freeMem -= totalMsgLen;
+			infoMutex->Unlock();
+		}
+	} //endif there is memory to write to
+	else
+		return false; //could not write to buffer
 
 	return true;
 }
 
 bool SharedMemory::CircleBuffer::Push(SharedData::SharedMessage * msg)
 {
-	//calculate padding
-	size_t offset  = msg->header.length % chunkSize;
-	size_t padding = chunkSize - offset;
-
-	assert((msg->header.length + padding) % chunkSize == 0); //just to make sure i've done it right
-
-	///*todo  : make a check if i can write.*/
-	memcpy(
-		(char*)_MessageMem->vFileView + head, 
-		(char*)&msg->header,
-		sizeof(SharedData::MesssageHeader));
-
-	memcpy(
-		(char*)_MessageMem->vFileView + head + sizeof(SharedData::MesssageHeader)
-		, msg->message
-		, msg->header.length + padding);
+////calculate padding
+//size_t offset  = msg->header.length % chunkSize;
+//size_t padding = chunkSize - offset;
+//
+//assert((msg->header.length + padding) % chunkSize == 0); //just to make sure i've done it right
+//
+/////*todo  : make a check if i can write.*/
+//memcpy(
+//	(char*)_MessageMem->vFileView + head, 
+//	(char*)&msg->header,
+//	sizeof(SharedData::MesssageHeader));
+//
+//memcpy(
+//	(char*)_MessageMem->vFileView + head + sizeof(SharedData::MesssageHeader)
+//	, msg->message
+//	, msg->header.length + padding);
 
 	return true;
 }
@@ -75,16 +162,16 @@ bool SharedMemory::CircleBuffer::Pop(char * msg, size_t & length)
 bool SharedMemory::CircleBuffer::Pop(SharedData::SharedMessage * msg)
 {
 
-	//copy header
-	memcpy(&msg->header,(char*)_MessageMem->vFileView + tail,
-		sizeof(SharedData::MesssageHeader));
+	//copy header	CHANGE THIS! DO NOT COPY HEADER!
+	//memcpy(&msg->header,(char*)_MessageMem->vFileView + tail,
+	//	sizeof(SharedData::MesssageHeader));
 	
-	size_t readOffset = tail + sizeof(SharedData::MesssageHeader);
-	//copy message
-	memcpy(msg->message,
-		(char*)_MessageMem->vFileView + readOffset, 
-		msg->header.length);
-	//
+//size_t readOffset = tail + sizeof(SharedData::MesssageHeader);
+////copy message
+//memcpy(msg->message,
+//	(char*)_MessageMem->vFileView + readOffset, 
+//	msg->header.length);
+////
 	std::cout << msg->message << std::endl;
 		
 
@@ -109,6 +196,8 @@ CircleBuffer::CircleBuffer()
 {
 	
 }
+
+
 
 
 

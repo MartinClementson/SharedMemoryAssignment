@@ -85,7 +85,12 @@ Consumer::Consumer(CommandArgs &arguments)
  #pragma region Open mapping and create file view 
 
 	messageBuffer = std::unique_ptr<SharedMemory::CircleBuffer>(new SharedMemory::CircleBuffer());
-	if (!messageBuffer->Init(arguments, GetFileName(Files::MessageFile), GetFileName(Files::InformationFile)))
+	if (!messageBuffer->Init(arguments, 
+		GetFileName(Files::MessageFile),
+		GetMutexName(Files::MessageFile),
+		GetFileName(Files::InformationFile),
+		GetMutexName(Files::InformationFile)
+		))
 		errorflag = true;
 
 #pragma endregion
@@ -118,7 +123,7 @@ Consumer::Consumer(CommandArgs &arguments)
 			{
 				SharedData::SharedInformation *temp;
 				temp = (SharedData::SharedInformation*)this->messageBuffer->GetInfoBuffer()->vFileView;
-				temp->numProcesses += 1; // increment numProcesses in the shared memory
+				temp->clients += 1; // increment numProcesses in the shared memory
 
 				infoMutex->Unlock();
 			}
@@ -145,7 +150,7 @@ Consumer::~Consumer()
 		if (infoMutex->Lock(INFINITE))
 		{
 			SharedData::SharedInformation* temp = (SharedData::SharedInformation*)this->messageBuffer->GetInfoBuffer()->vFileView;
-			temp->numProcesses -= 1;
+			temp->clients -= 1;
 
 			infoMutex->Unlock();
 		}

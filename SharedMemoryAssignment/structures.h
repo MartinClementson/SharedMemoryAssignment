@@ -19,12 +19,10 @@ namespace SharedData
 
 	struct SharedInformation
 	{
-		bool producerConnected	  = false;
-		unsigned int numProcesses = 0;
-		unsigned int head;  //head index
-		unsigned int tail;	//tail index
-
-		
+		size_t head		= 0;	//head offset
+		size_t tail		= 0;	//tail offset
+		size_t freeMem  = 0;	
+		size_t clients  = 0;
 	};
 
 	struct MesssageHeader
@@ -111,6 +109,7 @@ namespace SharedMemory
 	
 		bool Init(CommandArgs* info, LPCWSTR bufferName)
 		{
+			bool initialInit = false;
 			this->fileSize = size_t(info->memorySize);
 			//try opening it first
 			this->hFileMap = OpenFileMapping(
@@ -130,10 +129,12 @@ namespace SharedMemory
 	
 				if (hFileMap == NULL) //if it still doesent work, throw error
 				{
-					DWORD hej = GetLastError();
+
 					MessageBox(GetConsoleWindow(), TEXT("Error creating fileMap"), TEXT("SharedMemoryStruct"), MB_OK);
 					return false;
 				}
+				else
+					initialInit = true;
 			}
 	
 			vFileView = (LPTSTR)MapViewOfFile(hFileMap, //Create the view
@@ -146,9 +147,15 @@ namespace SharedMemory
 				MessageBox(GetConsoleWindow(), TEXT("Error when mapping file view"), TEXT("SharedMemoryStruct"), MB_OK);
 				return false;
 			}
+			if (initialInit)
+			{
+				memset((char*)&vFileView, (int) 0, (char)fileSize);
+
+			}
 			return true;
 
 		}
+
 		~SharedMemoryStruct() {
 			if (hFileMap != NULL)
 				CloseHandle(hFileMap);
