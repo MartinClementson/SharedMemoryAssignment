@@ -119,7 +119,7 @@ CommandArgs ParseCommands(int* argc, char* argv[])
 	toReturn.memorySize		= std::atoi(argv[3]); //convert from string to int
 	toReturn.numMessages	= std::atoi(argv[4]); //convert from string to int
 
-	if (strcmp(argv[5], "random") == 0)
+	if (strcmp(argv[5], "random") == 0 || std::atoi(argv[5]) == 0)
 		toReturn.random = true;
 	else
 		toReturn.msgSize	= std::atoi(argv[5]); //convert from string to int
@@ -142,7 +142,7 @@ BOOL WINAPI ConsoleHandler(DWORD CEvent)
 		process = false;
 		//MessageBox(NULL,
 		//	TEXT("Program being closed!"), TEXT("CEvent"), MB_OK);
-		Sleep(500);
+		Sleep(500000);
 		break;
 	
 

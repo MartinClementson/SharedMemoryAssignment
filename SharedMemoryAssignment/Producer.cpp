@@ -16,18 +16,17 @@ DWORD Producer::WriteToMemory(SharedData::SharedMessage* msg)
 	//if(msgMutex->Lock(INFINITE))
 	//{
 		//Mutex is ours
-		PVOID pMsgbuf = (PVOID) this->messageBuffer->GetMessageBuffer()->vFileView;
-		ZeroMemory(pMsgbuf, 10);
 
 		SharedData::SharedMessage* ptr = localMsg.get();
-		//messageBuffer->Push(&localMsg->header, sizeof(SharedData::MesssageHeader)); //write header
-		//messageBuffer->Push(msg->message, localMsg->header.length + padding);
-		messageBuffer->Push(localMsg.get());
+		
+		while (!messageBuffer->Push(localMsg->message, localMsg->header.length))
+		{
+			//it fails if the buffer is full. sleep and try again in a while
+			Sleep(50);
 
-		//messageBuffer->Push((char*)msg,sizeof(SharedData::MesssageHeader) + localMsg->header.length);
-		//memcpy(pMsgbuf, &number, sizeof(int));
+		}
+		//messageBuffer->Push(localMsg.get());
 
-		//msgMutex->Unlock(); //release the mutex
 
 		if (!SetEvent(this->hWriteEvent))	//Signal that the writing is done!
 			MessageBox(NULL, TEXT("COULD NOT Trigger Write event!"), TEXT("DANGER"), MB_OK);
@@ -50,36 +49,35 @@ bool Producer::Exec()
 			Sleep((DWORD)sessionInfo.msDelay);  //delay specified by the user
 			if (ReadSharedInformation())		//if the information was read successfully
 			{
-				if (this->numProcesses > 0) //If there are any consumers
+				
+				if (sessionInfo.MessagesToSend()) //if there are messages to send
 				{
-					if (sessionInfo.MessagesToSend()) //if there are messages to send
-					{
 
-						cout << "\n\n\n \t\tMESSAGE NUMBER :" << sessionInfo.messagesSent + 1 << "\n\n";
-						this->GenerateRndMessage();
-						cout << localMsg->message << endl;
-						cout << localMsg->message << endl;
-						cout << localMsg->message << endl;
-						cout << localMsg->message << endl;
-						if (WriteToMemory(localMsg.get()) == FALSE)
-						{
-							MessageBox(GetConsoleWindow(), TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
-							running = false;
-						}
-						else {
-							localMsg->Flush();
-							sessionInfo.messagesSent += 1;
-							x++;
-						}
+					cout << "\n\n\n \t\tMESSAGE NUMBER :" << sessionInfo.messagesSent + 1 << "\n\n";
+					this->GenerateRndMessage();
+					cout << localMsg->message << endl;
+					cout << localMsg->message << endl;
+					cout << localMsg->message << endl;
+					cout << localMsg->message << endl;
+					if (WriteToMemory(localMsg.get()) == FALSE)
+					{
+						MessageBox(GetConsoleWindow(), TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
+						running = false;
 					}
 					else {
-						//std::cout << "All messages have been sent.. Exiting application" << std::endl;
-						#ifdef DEBUG
-						Sleep(2000);
-						#endif // DEBUG
-						//running = false;
+						localMsg->Flush();
+						sessionInfo.messagesSent += 1;
+						x++;
 					}
 				}
+				else {
+					//std::cout << "All messages have been sent.. Exiting application" << std::endl;
+					#ifdef DEBUG
+					Sleep(2000);
+					#endif // DEBUG
+					//running = false;
+				}
+
 			}
 			else
 				running = false;
@@ -169,15 +167,15 @@ void Producer::HandleEvents()
 bool Producer::ReadSharedInformation()
 {
 #pragma region Access Info mutex 
-	SharedData::SharedInformation* temp;
-	temp = (SharedData::SharedInformation*)this->messageBuffer->GetInfoBuffer()->vFileView;
-
-	if (temp->clients != this->numProcesses) //if the information has changed
-	{
-		this->numProcesses = temp->clients;  //update the producers information
-		if (numProcesses == 0)					  //If the consumers disconnected
-			std::cout << "No Consumers connected" << std::endl;
-	}
+	//SharedData::SharedInformation* temp;
+	//temp = (SharedData::SharedInformation*)this->messageBuffer->GetInfoBuffer()->vFileView;
+	//
+	//if (temp->clients != this->numProcesses) //if the information has changed
+	//{
+	//	this->numProcesses = temp->clients;  //update the producers information
+	//	if (numProcesses == 0)					  //If the consumers disconnected
+	//		std::cout << "No Consumers connected" << std::endl;
+	//}
 	return true;
 }
 

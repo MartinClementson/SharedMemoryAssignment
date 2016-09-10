@@ -96,6 +96,14 @@ struct SharedCircleBuffer
 
 };
 
+struct InitReturnValues
+{
+	bool firstTimeInit = false;
+	bool succeded = false;
+
+
+};
+
 #pragma region SharedMemStruct
 using namespace std;
 namespace SharedMemory
@@ -107,9 +115,10 @@ namespace SharedMemory
 		LPCTSTR vFileView	= NULL;
 		SharedMemoryStruct() {};
 	
-		bool Init(CommandArgs* info, LPCWSTR bufferName)
+		InitReturnValues Init(CommandArgs* info, LPCWSTR bufferName)
 		{
-			bool initialInit = false;
+			InitReturnValues toReturn;
+			
 			this->fileSize = size_t(info->memorySize);
 			//try opening it first
 			this->hFileMap = OpenFileMapping(
@@ -131,10 +140,10 @@ namespace SharedMemory
 				{
 
 					MessageBox(GetConsoleWindow(), TEXT("Error creating fileMap"), TEXT("SharedMemoryStruct"), MB_OK);
-					return false;
+					return toReturn;
 				}
 				else
-					initialInit = true;
+					toReturn.firstTimeInit = true;
 			}
 	
 			vFileView = (LPTSTR)MapViewOfFile(hFileMap, //Create the view
@@ -145,14 +154,13 @@ namespace SharedMemory
 			if (vFileView == NULL)
 			{
 				MessageBox(GetConsoleWindow(), TEXT("Error when mapping file view"), TEXT("SharedMemoryStruct"), MB_OK);
-				return false;
+				return toReturn;
 			}
-			if (initialInit)
-			{
-				memset((char*)&vFileView, (int) 0, (char)fileSize);
+			
+			SharedData::SharedInformation* test = (SharedData::SharedInformation*) vFileView; //this should contain data already!
 
-			}
-			return true;
+			toReturn.succeded = true;
+			return toReturn;
 
 		}
 

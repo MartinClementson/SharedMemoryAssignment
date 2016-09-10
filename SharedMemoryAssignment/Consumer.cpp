@@ -4,32 +4,15 @@
 
 DWORD Consumer::ReadFromMemory()
 {
-	DWORD waitResult;
-	DWORD waitResultMutex = NULL;
-	waitResult = WaitForSingleObject( //wait for event to trigger that the producer has finished writing
-		hWriteEvent, // event handle
-		INFINITE);    // infinite wait
 
-	switch (waitResult)
+
+	
+	if (this->messageBuffer->Pop(this->localMsg->message, localMsg->header.length))
 	{
-		// Event object was signaled
-		int* pMsgbuf;
-	case WAIT_OBJECT_0:
-		// TODO: Read from the shared buffer
-			
-		if(this->msgMutex->Lock(INFINITE));
-		{
-			this->messageBuffer->Pop(this->localMsg.get());
-			msgMutex->Unlock();
-		}
-			
-		break;
+		std::cout << localMsg->message << std::endl;
 
-		// An error occurred
-	default:
-		printf("Wait error (%d)\n", GetLastError());
-		return 0;
 	}
+			
 	return TRUE;
 }
 
@@ -97,40 +80,40 @@ Consumer::Consumer(CommandArgs &arguments)
 
 #pragma region Open mutex
 
-	if (!errorflag)
-	{
-
-	try {	//Create the  mutexes
-			msgMutex  = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::MessageFile)));
-			infoMutex = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::InformationFile)));
-		}
-		catch (...)
-		{
-			MessageBox(GetConsoleWindow(), TEXT("error creating the mutexes"), TEXT("ERROR"), MB_OK);
-			errorflag = true;
-		}
-	}
+	//if (!errorflag)
+	//{
+	//
+	//try {	//Create the  mutexes
+	//		msgMutex  = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::MessageFile)));
+	//		infoMutex = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::InformationFile)));
+	//	}
+	//	catch (...)
+	//	{
+	//		MessageBox(GetConsoleWindow(), TEXT("error creating the mutexes"), TEXT("ERROR"), MB_OK);
+	//		errorflag = true;
+	//	}
+	//}
 
 #pragma endregion
 
 	if(!errorflag)
 		errorflag = SetUpEventHandling(errorflag);
 
-		if (errorflag == false)
-		{
-			//Get the info file, wait for the mutex. then add a counter to the "numProcesses" variable
-			if (infoMutex->Lock(INFINITE))
-			{
-				SharedData::SharedInformation *temp;
-				temp = (SharedData::SharedInformation*)this->messageBuffer->GetInfoBuffer()->vFileView;
-				temp->clients += 1; // increment numProcesses in the shared memory
+		//if (errorflag == false)
+		//{
+		//	//Get the info file, wait for the mutex. then add a counter to the "numProcesses" variable
+		//	if (infoMutex->Lock(INFINITE))
+		//	{
+		//		SharedData::SharedInformation *temp;
+		//		temp = (SharedData::SharedInformation*)this->messageBuffer->GetInfoBuffer()->vFileView;
+		//		temp->clients += 1; // increment numProcesses in the shared memory
 
-				infoMutex->Unlock();
-			}
+		//		infoMutex->Unlock();
+		//	}
 
-		}
-		else
-			running = false; //if there was any error in the process
+		//}
+		//else
+		//	running = false; //if there was any error in the process
 
 #pragma endregion
 }
@@ -144,17 +127,7 @@ Consumer::~Consumer()
 {
 	
 	
-		 //Get the info file, wait for the mutex. then decrease a counter to the "numProcesses" variable
-	if (infoMutex != NULL)
-	{
-		if (infoMutex->Lock(INFINITE))
-		{
-			SharedData::SharedInformation* temp = (SharedData::SharedInformation*)this->messageBuffer->GetInfoBuffer()->vFileView;
-			temp->clients -= 1;
-
-			infoMutex->Unlock();
-		}
-	}
+	
 }
 
 bool Consumer::Exec()
