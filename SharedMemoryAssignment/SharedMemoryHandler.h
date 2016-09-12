@@ -16,6 +16,35 @@
 
 class SharedMemoryHandler
 {
+protected:
+	struct SessionInfo
+	{
+		unsigned int numMessages = 0;
+		unsigned int messagesGenerated = 0; //used to keep track of message ids,
+		unsigned int messagesSent = 0;
+		unsigned int messagesRecieved = 0;
+		bool random = false;
+		unsigned int msgSize = 0;
+		double msDelay = 0;
+		SessionInfo() {};
+
+		SessionInfo(CommandArgs commands)
+		{
+			this->messagesSent = 0;
+			this->messagesRecieved = 0;
+			this->numMessages = commands.numMessages;
+			this->random = commands.random;
+			this->msgSize = commands.msgSize;
+			this->msDelay = commands.msDelay;
+		}
+		bool MessagesToSend()
+		{
+			if (this->messagesSent < this->numMessages)
+				return true;  //there are messages to send
+			else
+				return false; //all messages have been sent
+		}
+	};
 	private:
 		LPCWSTR msgFileName			  = (LPCWSTR)TEXT("sharedMsgFile");		  // the file to be manipulated
 		LPCWSTR msgMutexName		  = (LPCWSTR)TEXT("sharedMsgMutex");	  // the the mutex to be used when synchronizing data							
@@ -23,8 +52,8 @@ class SharedMemoryHandler
 		LPCWSTR infomutexName		  = (LPCWSTR)TEXT("sharedInfoMutex");	  // the the mutex to be used when synchronizing data											
 		LPCWSTR writeEventName		  = (LPCWSTR)TEXT("writeEvent");		  // the event handle to the writing event
 
-
 	protected:
+		SessionInfo sessionInfo;
 
 		std::shared_ptr<SharedData::SharedMessage> localMsg = nullptr;		  //this could be evaluated to a vector, to be able to store many reads or writes locally
 		std::unique_ptr<SharedMemory::CircleBuffer> messageBuffer;

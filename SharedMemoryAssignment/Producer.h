@@ -9,36 +9,11 @@
 class Producer : public SharedMemoryHandler
 {
 
-	struct SessionInfo
-	{
-		unsigned int numMessages  = 0;
-		unsigned int messagesGenerated = 0; //used to keep track of message ids,
-		unsigned int messagesSent = 0;
-		bool random				  = false;
-		unsigned int msgSize	  = 0;
-		double msDelay			  = 0;
-		SessionInfo() {};
-
-		SessionInfo(CommandArgs commands)
-		{
-			this->messagesSent  = 0;
-			this->numMessages   = commands.numMessages;
-			this->random		= commands.random;
-			this->msgSize		= commands.msgSize;
-			this->msDelay		= commands.msDelay;
-		}
-		bool MessagesToSend()
-		{
-			if (this->messagesSent < this->numMessages)
-				return true;  //there are messages to send
-			else
-				return false; //all messages have been sent
-		}
-	};
+	
 
 private:
 
-	SessionInfo sessionInfo;
+	
 	
 	
 protected:

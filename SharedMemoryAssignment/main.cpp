@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
 
 	if (argc < 5)
 	{
-		std::cout << "Not enough arguments" << std::endl;
+		MessageBox(GetConsoleWindow(), TEXT("Not enough arguments"), TEXT("Error"), MB_OK);
 		std::getchar();
 		return -1;
 	}
@@ -51,8 +51,12 @@ int main(int argc, char* argv[])
 
 		CommandArgs commands = ParseCommands(&argc, argv); //parse the commands and put the information into the commands structure
 
-		if(commands.producer == true)			//Create producer or consumer, depending on the commands
+		if (commands.producer == true)			//Create producer or consumer, depending on the commands
+		{
+
 			memoryHandle = std::unique_ptr<Producer>(new Producer(commands));
+			Sleep(5000); //so that all consumers can start.
+		}
 		else
 			memoryHandle = std::unique_ptr<Consumer>(new Consumer(commands));
 
@@ -93,10 +97,10 @@ CommandArgs ParseCommands(int* argc, char* argv[])
 {
 	CommandArgs toReturn;
 
-	for (size_t i = 1; i < *argc; i++) //skip the first argument, it is only the executable line
-	{
-		std::cout << argv[i] << std::endl;
-	}
+//for (size_t i = 1; i < *argc; i++) //skip the first argument, it is only the executable line
+//{
+//	std::cout << argv[i] << std::endl;
+//}
 
 
 
@@ -109,8 +113,8 @@ CommandArgs ParseCommands(int* argc, char* argv[])
 		toReturn.producer = false;
 	else
 	{
-		std::cout << "error reading commandline arguments" << std::endl;
-		std::getchar();
+		MessageBox(GetConsoleWindow(), TEXT("error reading commandline arguments"), TEXT("Error"), MB_OK);
+		
 	}
 #pragma endregion
 

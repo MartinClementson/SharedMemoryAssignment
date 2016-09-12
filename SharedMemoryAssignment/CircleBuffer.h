@@ -39,6 +39,7 @@ namespace SharedMemory
 		std::unique_ptr<SharedMemory::SharedMutex> msgMutex;  // mutex											 
 		std::unique_ptr<SharedMemory::SharedMutex> infoMutex; // mutex
 		
+		size_t CalculatePadding(size_t msgSize, size_t chunkSize);
 	
 	public:
 	bool Push( void* msg, size_t length);

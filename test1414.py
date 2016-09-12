@@ -74,7 +74,7 @@ class ThreadTest(threading.Thread):
 
 
 # change executable name if necessary
-program = 'shared.exe'
+program = 'SharedMemoryAssignment.exe'
 
 if __name__=='__main__':
     programName = program

@@ -9,8 +9,8 @@ DWORD Consumer::ReadFromMemory()
 	
 	if (this->messageBuffer->Pop(this->localMsg->message, localMsg->header.length))
 	{
-		std::cout << localMsg->message << std::endl;
-
+	//	std::cout << localMsg->message << "\n\n\n"<<std::endl;
+		sessionInfo.messagesRecieved += 1;
 	}
 			
 	return TRUE;
@@ -60,9 +60,11 @@ Consumer::Consumer(CommandArgs &arguments)
 {
 	bool errorflag = false;
 
+	this->sessionInfo = SessionInfo(arguments); //store the arguments into a struct
+
 	localMsg				 = std::shared_ptr<SharedData::SharedMessage>(new SharedData::SharedMessage());
-	this->maxMessageLen		 = (arguments.memorySize *(1 << 20)) / 4;
-	localMsg->message		 = new char[maxMessageLen]; //make it maximum size
+	this->maxMessageLen		 = (arguments.memorySize *(1 << 20)); 
+	localMsg->message		 = new char[maxMessageLen];			//make it maximum size
 
 
  #pragma region Open mapping and create file view 
@@ -135,7 +137,10 @@ bool Consumer::Exec()
 	
 	if (running)
 	{
+		if (this->sessionInfo.messagesRecieved == sessionInfo.numMessages)
+			running = false;
 		HandleEvents();
+		Sleep(this->sessionInfo.msDelay);
 		if (!this->ReadFromMemory() == TRUE)
 		{
 			MessageBox(GetConsoleWindow(), TEXT("Could not read from memory!"), TEXT("Error"), MB_OK);
