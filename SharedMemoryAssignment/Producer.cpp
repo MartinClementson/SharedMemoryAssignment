@@ -29,8 +29,8 @@ bool Producer::Exec()
 
 					//cout << "\n\n\n \t\tMESSAGE NUMBER :" << sessionInfo.messagesSent + 1 << " of "<<sessionInfo.numMessages <<
 					//	"\n\n";
-					if (sessionInfo.messagesSent == 1000)
-						std::cout << "break" << std::endl;
+					
+					
 					this->GenerateRndMessage();
 					do
 					{
