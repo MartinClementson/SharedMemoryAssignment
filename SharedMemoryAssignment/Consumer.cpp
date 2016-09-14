@@ -137,8 +137,6 @@ bool Consumer::Exec()
 	
 	if (running)
 	{
-		if (this->sessionInfo.messagesRecieved == sessionInfo.numMessages)
-			running = false;
 		HandleEvents();
 		Sleep(this->sessionInfo.msDelay);
 		if (!this->ReadFromMemory() == TRUE)
@@ -146,6 +144,8 @@ bool Consumer::Exec()
 			MessageBox(GetConsoleWindow(), TEXT("Could not read from memory!"), TEXT("Error"), MB_OK);
 			return false;
 		}
+		if (this->sessionInfo.messagesRecieved == sessionInfo.numMessages)
+			running = false;
 		return true;
 	}
 	else

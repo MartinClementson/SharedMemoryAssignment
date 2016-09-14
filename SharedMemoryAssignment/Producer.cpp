@@ -5,36 +5,12 @@
 
 DWORD Producer::WriteToMemory(SharedData::SharedMessage* msg)
 {
-	
-	////calculate padding
-	//size_t offset   = msg->header.length % 256;
-	//size_t padding  = 256 - offset;
-	//
-	//assert((msg->header.length + padding) % 256 == 0);
-
-	
-	//if(msgMutex->Lock(INFINITE))
-	//{
-		//Mutex is ours
-
-		SharedData::SharedMessage* ptr = localMsg.get();
 		
-		while (!messageBuffer->Push(localMsg->message, localMsg->header.length))
-		{
-			//it fails if the buffer is full. sleep and try again in a while
-			Sleep(50);
+	if (!messageBuffer->Push(localMsg->message, localMsg->header.length))
+		return FALSE;
 
-		}
-		//messageBuffer->Push(localMsg.get());
-
-
-		if (!SetEvent(this->hWriteEvent))	//Signal that the writing is done!
-			MessageBox(NULL, TEXT("COULD NOT Trigger Write event!"), TEXT("DANGER"), MB_OK);
-		else
-			ResetEvent(this->hWriteEvent);		//Reset the signal directly after it has been sent out!
-	//}
-
-				
+	sessionInfo.messagesSent += 1;
+	std::cout << sessionInfo.messagesSent << " " << (char*)localMsg->message << "\n";
 			
 	return TRUE;
  }
@@ -47,40 +23,32 @@ bool Producer::Exec()
 	{
 			HandleEvents();						//check for events
 			Sleep((DWORD)sessionInfo.msDelay);  //delay specified by the user
-			if (ReadSharedInformation())		//if the information was read successfully
-			{
 				
 				if (sessionInfo.MessagesToSend()) //if there are messages to send
 				{
 
 					//cout << "\n\n\n \t\tMESSAGE NUMBER :" << sessionInfo.messagesSent + 1 << " of "<<sessionInfo.numMessages <<
 					//	"\n\n";
+					if (sessionInfo.messagesSent == 1000)
+						std::cout << "break" << std::endl;
 					this->GenerateRndMessage();
-					
-					if (WriteToMemory(localMsg.get()) == FALSE)
+					do
 					{
-						MessageBox(GetConsoleWindow(), TEXT("Could not write to memory"), TEXT("HELP"), MB_OK);
-						running = false;
-					}
-					else {
-						localMsg->Flush();
-						sessionInfo.messagesSent += 1;
-						
-					}
+						Sleep((DWORD)sessionInfo.msDelay);
+					} while (WriteToMemory(localMsg.get()) == FALSE);
+					
+					
 				}
 				else {
 					//std::cout << "All messages have been sent.. Exiting application" << std::endl;
 					#ifdef DEBUG
 					Sleep(2000);
 					#endif // DEBUG
-					running = false;
+					running = false;	 //one of these needs to go
+					return false;		 //one of these needs to go
 				}
 
-			}
-			else
-				running = false;
 		return true;
-
 	}
 	else
 		return false;
@@ -96,9 +64,9 @@ void Producer::GenerateRndMessage()
 	if (sessionInfo.random) //create a random sized message (NOT bigger than a quarter of fileSize)
 	{
 		size_t fileSize = messageBuffer->GetMessageBuffer()->fileSize;
-		//msgSize = rand() % ((fileSize / 4) - sizeof(SharedData::MesssageHeader)) + 1; // random between (1 - (fileSize/4 - header))
+		msgSize = rand() % (fileSize / 4)  + 1; // random between (1 - (fileSize/4))
 	
-		msgSize = rand() % 8 + 1; //temp
+		//msgSize = rand() % 8 + 1; //temp
 	}
 	else
 		msgSize = sessionInfo.msgSize;
@@ -116,13 +84,11 @@ void Producer::GenerateRndMessage()
 
 	}
 	
-	localMsg->message[msgSize-1]	= '\0';
+	localMsg->message[msgSize - 1]	= '\0';
 	localMsg->header.msgId			= sessionInfo.messagesGenerated;
 	localMsg->header.length			= msgSize; //+1 for escapechar
 	localMsg->header.consumerQueue  = this->numProcesses;
 	sessionInfo.messagesGenerated  += 1;
-
-	//cout << localMsg->message << endl;
 
 }
 
@@ -224,8 +190,8 @@ if (!errorflag)
 
 	try {
 
-		msgMutex = std::unique_ptr<SharedMemory::SharedMutex> (new SharedMemory::SharedMutex(this->GetMutexName(Files::MessageFile)));
-		infoMutex = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::InformationFile)));
+		//msgMutex = std::unique_ptr<SharedMemory::SharedMutex> (new SharedMemory::SharedMutex(this->GetMutexName(Files::MessageFile)));
+		//infoMutex = std::unique_ptr<SharedMemory::SharedMutex>(new SharedMemory::SharedMutex(this->GetMutexName(Files::InformationFile)));
 	}
 	catch (...)
 	{

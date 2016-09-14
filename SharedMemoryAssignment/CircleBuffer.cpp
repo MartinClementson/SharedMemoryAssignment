@@ -96,7 +96,10 @@ size_t SharedMemory::CircleBuffer::CalculatePadding(size_t msgSize, size_t chunk
 
 bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 {
+	SharedData::MesssageHeader* header = (SharedData::MesssageHeader*)((char*)_MessageMem->vFileView + *shared_head);
 
+	if (header->consumerQueue > 0 && header->consumerQueue < ((SharedData::SharedInformation*) _InfoMem->vFileView)->clients-1)
+		return false;
 	//calculate padding
 
 	size_t padding = CalculatePadding(sizeof(SharedData::MesssageHeader) + length, chunkSize);
@@ -106,7 +109,7 @@ bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 	size_t totalMsgLen = length + sizeof(SharedData::MesssageHeader) + padding;
 
 	//first check if there is any available memory to write to
-	if (totalMsgLen <= *freeMem) // if there is room!	
+	if (length + sizeof(SharedData::MesssageHeader) <= *freeMem) // if there is room!	
 	{
 
 		SharedData::SharedInformation* temp = (SharedData::SharedInformation*) _InfoMem->vFileView;
@@ -116,7 +119,7 @@ bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 		header.length = length;
 		header.consumerQueue = temp->clients - 1; //exclude the client sending the message!
 
-		std::cout << header.msgId << " " << (char*)msg << "\n";
+		
 		
 		if (totalMsgLen + *shared_head > _MessageMem->fileSize) // if not the whole message fits at the end
 		{
@@ -140,10 +143,21 @@ bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 
 					if (infoMutex->Lock(INFINITE)) // now update the information
 					{
-						*shared_head = 0  + (length - fitLength)+ padding;
+						*shared_head = 0 + (length - fitLength) + padding;
 						*freeMem -= totalMsgLen;
+						FlushViewOfFile(_InfoMem->vFileView, sizeof(SharedData::MesssageHeader));
 						infoMutex->Unlock();
 					}
+					else
+					{
+						MessageBox(GetConsoleWindow(), TEXT("Could not lock Mutex "), TEXT("Critical error"), MB_OK);
+						return false;
+					}
+				}
+				else
+				{
+					MessageBox(GetConsoleWindow(), TEXT("Could not lock Mutex "), TEXT("Critical error"), MB_OK);
+					return false;
 				}
 			}
 			else //Delete this after more tests to make sure it never enters. 
@@ -164,13 +178,17 @@ bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 							*freeMem -= totalMsgLen;
 							infoMutex->Unlock();
 						}
+						else
+						{
+							MessageBox(GetConsoleWindow(), TEXT("Could not lock Mutex "), TEXT("Critical error"), MB_OK);
+							return false;
+						}
 					}
 				}
 				else
 					MessageBox(GetConsoleWindow(), TEXT("Could not lock infomutex in Push()"), TEXT("Abandon hope"), MB_OK);
 
 			}
-
 
 		}
 		else
@@ -185,8 +203,19 @@ bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 				{
 					*shared_head = (*shared_head + totalMsgLen) % _MessageMem->fileSize;
 					*freeMem -= totalMsgLen;
+					FlushViewOfFile(_InfoMem->vFileView, sizeof(SharedData::MesssageHeader));
 					infoMutex->Unlock();
 				}
+				else
+				{
+					MessageBox(GetConsoleWindow(), TEXT("Could not lock Mutex "), TEXT("Critical error"), MB_OK);
+					return false;
+				}
+			}
+			else
+			{
+				MessageBox(GetConsoleWindow(), TEXT("Could not lock Mutex "), TEXT("Critical error"), MB_OK);
+				return false;
 			}
 		}
 	} //endif there is memory to write to
@@ -232,52 +261,55 @@ bool SharedMemory::CircleBuffer::Pop(char * msg, size_t & length)
 	{
 		SharedData::MesssageHeader* header = (SharedData::MesssageHeader*)((char*)_MessageMem->vFileView + local_tail);
 
+		if (header->consumerQueue <= 0 )
+		{
+	
+		return false;
+		}
 		////calculate padding
-		size_t offset = (sizeof(SharedData::MesssageHeader) + header->length) % chunkSize;
-		size_t padding = chunkSize - offset;
-		if (padding == 256)
-			padding = 0;
+		size_t padding = CalculatePadding(sizeof(SharedData::MesssageHeader) + header->length, chunkSize);
 		/////
-		size_t msgLength = sizeof(SharedData::MesssageHeader) + header->length;
+		size_t msgLength = sizeof(SharedData::MesssageHeader) + header->length + padding;
 
 		if (local_tail + msgLength > _MessageMem->fileSize) // if not the whole message fits
 		{
-			size_t fitLength = _MessageMem->fileSize - local_tail - sizeof(SharedData::MesssageHeader);				// get how many chars fit at the end.
+			size_t fitLength = _MessageMem->fileSize - (local_tail + sizeof(SharedData::MesssageHeader));				// get how many chars fit at the end.
 
-			memcpy(msg, _MessageMem->vFileView + local_tail + sizeof(SharedData::MesssageHeader), fitLength);
+			memcpy(msg, (char*)_MessageMem->vFileView + local_tail + sizeof(SharedData::MesssageHeader), fitLength);
 
-			memcpy(msg + fitLength, _MessageMem->vFileView, header->length - fitLength);
+			memcpy(msg + fitLength, (char*)_MessageMem->vFileView, header->length - fitLength);
 
 
 			////calculate new padding
-			size_t offset = (header->length - fitLength) % chunkSize;
-			size_t padding = chunkSize - offset;
+			size_t padding = CalculatePadding((header->length - fitLength), chunkSize);
 			/////
 			msgLength = header->length + sizeof(SharedData::MesssageHeader) + padding;
 			//move local tail
 			local_tail = 0 + (header->length - fitLength + padding );
 
-			if (header->consumerQueue <= 1) //this means this reader is the last one
+			if (msgMutex->Lock(INFINITE))
 			{
-				if (infoMutex->Lock(INFINITE))
+				header->consumerQueue -= 1;
+				if (header->consumerQueue <= 0) //this means this reader is the last one
 				{
-					*shared_tail = local_tail;
-					*freeMem += msgLength;
-					infoMutex->Unlock();
+					if (infoMutex->Lock(INFINITE))
+					{
+						*shared_tail = header->length - fitLength + padding;
+						*freeMem += msgLength;
+						FlushViewOfFile(_InfoMem->vFileView, sizeof(SharedData::MesssageHeader));
+						infoMutex->Unlock();
+					}
+					else
+						MessageBox(GetConsoleWindow(), TEXT("Could not lock infoMutex in Pop()"), TEXT("Critical error"), MB_OK);
 				}
-				else
-					MessageBox(GetConsoleWindow(), TEXT("Could not lock infoMutex in Pop()"), TEXT("Critical error"), MB_OK);
+				msgMutex->Unlock();
 			}
 			else
 			{
-				if (msgMutex->Lock(INFINITE))
-				{
-					header->consumerQueue -= 1;
-					msgMutex->Unlock();
-				}
-
-
+				MessageBox(GetConsoleWindow(), TEXT("Could not lock Mutex "), TEXT("Critical error"), MB_OK);
+				return false;
 			}
+			
 		}
 		else //if the whole message fits at the same spot
 		{
@@ -288,33 +320,72 @@ bool SharedMemory::CircleBuffer::Pop(char * msg, size_t & length)
 			//move local tail
 			local_tail = (local_tail + header->length + sizeof(SharedData::MesssageHeader) + padding) % _MessageMem->fileSize;
 			//
-			if (header->consumerQueue <= 1) //this means this reader is the last one
+			if (msgMutex->Lock(INFINITE))
 			{
-				if (infoMutex->Lock(INFINITE))
+				header->consumerQueue -= 1;
+				if (header->consumerQueue <= 0) //this means this reader is the last one
 				{
-					*shared_tail = (*shared_tail + header->length + sizeof(SharedData::MesssageHeader) + padding) % _MessageMem->fileSize;
-					*freeMem += header->length + sizeof(SharedData::MesssageHeader) + padding;
-					infoMutex->Unlock();
+					if (infoMutex->Lock(INFINITE))
+					{
+						*shared_tail = (*shared_tail + header->length + sizeof(SharedData::MesssageHeader) + padding) % _MessageMem->fileSize;
+						*freeMem += header->length + sizeof(SharedData::MesssageHeader) + padding;
+						FlushViewOfFile(_InfoMem->vFileView, sizeof(SharedData::MesssageHeader));
+						infoMutex->Unlock();
+					}
+					else
+						MessageBox(GetConsoleWindow(), TEXT("Could not lock infoMutex in Pop()"), TEXT("Critical error"), MB_OK);
 				}
-				else
-					MessageBox(GetConsoleWindow(), TEXT("Could not lock infoMutex in Pop()"), TEXT("Critical error"), MB_OK);
+				msgMutex->Unlock();
 			}
 			else
 			{
-				if (msgMutex->Lock(INFINITE))
-				{
-					header->consumerQueue -= 1;
-					msgMutex->Unlock();
-				}
-
-
+				MessageBox(GetConsoleWindow(), TEXT("Could not lock Mutex "), TEXT("Critical error"), MB_OK);
+				return false;
 			}
 		}
 	}
-	else //if the header doesent fit!
-		return false;
-	
-	std::cout << messagesRecieved++ << " " << msg << "\n";
+	else
+	{
+		SharedData::MesssageHeader* header = (SharedData::MesssageHeader*)((char*)_MessageMem->vFileView);
+
+		memcpy(msg, (char*)_MessageMem->vFileView + sizeof(SharedData::MesssageHeader), header->length);
+
+		size_t padding = CalculatePadding(sizeof(SharedData::MesssageHeader) + header->length, chunkSize);
+
+		local_tail = (header->length + sizeof(SharedData::MesssageHeader) + padding) % _MessageMem->fileSize;
+
+
+		if (msgMutex->Lock(INFINITE))
+		{
+			header->consumerQueue -= 1;
+			if (header->consumerQueue <= 0) //this means this reader is the last one
+			{
+				if (infoMutex->Lock(INFINITE))
+				{
+					*shared_tail = (header->length + sizeof(SharedData::MesssageHeader) + padding) % _MessageMem->fileSize;
+					*freeMem += header->length + sizeof(SharedData::MesssageHeader) + padding;
+					FlushViewOfFile(_InfoMem->vFileView, sizeof(SharedData::MesssageHeader));
+					infoMutex->Unlock();
+
+				}
+				else
+				{
+					MessageBox(GetConsoleWindow(), TEXT("Could not lock Mutex "), TEXT("Critical error"), MB_OK);
+					return false;
+				}
+			}
+			msgMutex->Unlock();
+		}
+		else
+		{
+			MessageBox(GetConsoleWindow(), TEXT("Could not lock Mutex "), TEXT("Critical error"), MB_OK);
+			return false;
+		}
+	}
+	//else //if the header doesent fit!
+		//return false;
+	messagesRecieved++;
+	std::cout << messagesRecieved << " " << msg << "\n";
 	return true;
 }
 

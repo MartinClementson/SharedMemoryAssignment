@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
 	if custom message size
 	Check that the message size is not bigger than  a quarter of the total memory size*/
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-
+	
 	SetUpEvents();
 
 	if (SetConsoleCtrlHandler(
@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
 		{
 
 			memoryHandle = std::unique_ptr<Producer>(new Producer(commands));
-			Sleep(5000); //so that all consumers can start.
+			Sleep(10); //so that all consumers can start. chNGWD THIA FROM 5000 TO 10
 		}
 		else
 			memoryHandle = std::unique_ptr<Consumer>(new Consumer(commands));
