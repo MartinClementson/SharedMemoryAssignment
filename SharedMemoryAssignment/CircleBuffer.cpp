@@ -98,10 +98,10 @@ bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 {
 	SharedData::MesssageHeader* header = (SharedData::MesssageHeader*)((char*)_MessageMem->vFileView + *shared_head);
 
-	if (header->consumerQueue > 0 && header->consumerQueue < ((SharedData::SharedInformation*) _InfoMem->vFileView)->clients-1)
+	
+	
+	if (*shared_head == *shared_tail && *freeMem < _MessageMem->fileSize)
 		return false;
-	//calculate padding
-
 	size_t padding = CalculatePadding(sizeof(SharedData::MesssageHeader) + length, chunkSize);
 	
 	assert((sizeof(SharedData::MesssageHeader)+length + padding) % chunkSize == 0); //just to make sure i've done it right
@@ -255,17 +255,14 @@ bool SharedMemory::CircleBuffer::Pop(char * msg, size_t & length)
 		return false;
 
 
+	SharedData::MesssageHeader* header = (SharedData::MesssageHeader*)((char*)_MessageMem->vFileView + local_tail);
 
+	if (header->consumerQueue < 0 || header->consumerQueue > ((SharedData::SharedInformation*) _InfoMem->vFileView)->clients )
+		return false;
 
 	if (sizeof(SharedData::MesssageHeader) + local_tail <= _MessageMem->fileSize) // if the header fits 
 	{
-		SharedData::MesssageHeader* header = (SharedData::MesssageHeader*)((char*)_MessageMem->vFileView + local_tail);
-
-		if (header->consumerQueue <= 0 )
-		{
-	
-		return false;
-		}
+		
 		////calculate padding
 		size_t padding = CalculatePadding(sizeof(SharedData::MesssageHeader) + header->length, chunkSize);
 		/////

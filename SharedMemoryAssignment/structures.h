@@ -27,7 +27,7 @@ namespace SharedData
 
 	struct MesssageHeader
 	{
-		size_t consumerQueue;
+		int consumerQueue; // it helps that this can be negative. So that consumers can join mid-session without problem
 		size_t msgId;
 		size_t length;
 
