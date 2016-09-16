@@ -9,8 +9,8 @@ DWORD Producer::WriteToMemory(SharedData::SharedMessage* msg)
 	if (!messageBuffer->Push(localMsg->message, localMsg->header.length))
 		return FALSE;
 
-	sessionInfo.messagesSent += 1;
 	std::cout << sessionInfo.messagesSent << " " << (char*)localMsg->message << "\n";
+	sessionInfo.messagesSent += 1;
 			
 	return TRUE;
  }
@@ -41,9 +41,7 @@ bool Producer::Exec()
 				}
 				else {
 					//std::cout << "All messages have been sent.. Exiting application" << std::endl;
-					#ifdef DEBUG
-					Sleep(2000);
-					#endif // DEBUG
+					
 					running = false;	 //one of these needs to go
 					return false;		 //one of these needs to go
 				}

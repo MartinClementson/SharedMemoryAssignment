@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
 		{
 
 			memoryHandle = std::unique_ptr<Producer>(new Producer(commands));
-			Sleep(10); //so that all consumers can start. chNGWD THIA FROM 5000 TO 10
+			
 		}
 		else
 			memoryHandle = std::unique_ptr<Consumer>(new Consumer(commands));
@@ -146,7 +146,7 @@ BOOL WINAPI ConsoleHandler(DWORD CEvent)
 		process = false;
 		//MessageBox(NULL,
 		//	TEXT("Program being closed!"), TEXT("CEvent"), MB_OK);
-		Sleep(500000);
+		//Sleep(500000);
 		break;
 	
 

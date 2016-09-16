@@ -257,7 +257,7 @@ bool SharedMemory::CircleBuffer::Pop(char * msg, size_t & length)
 
 	SharedData::MesssageHeader* header = (SharedData::MesssageHeader*)((char*)_MessageMem->vFileView + local_tail);
 
-	if (header->consumerQueue < 0 || header->consumerQueue > ((SharedData::SharedInformation*) _InfoMem->vFileView)->clients )
+	if (header->consumerQueue <= 0 || header->consumerQueue > ((SharedData::SharedInformation*) _InfoMem->vFileView)->clients )
 		return false;
 
 	if (sizeof(SharedData::MesssageHeader) + local_tail <= _MessageMem->fileSize) // if the header fits 
@@ -382,7 +382,7 @@ bool SharedMemory::CircleBuffer::Pop(char * msg, size_t & length)
 	//else //if the header doesent fit!
 		//return false;
 	messagesRecieved++;
-	std::cout << messagesRecieved << " " << msg << "\n";
+	std::cout << header->msgId << " " << msg << "\n";
 	return true;
 }
 
