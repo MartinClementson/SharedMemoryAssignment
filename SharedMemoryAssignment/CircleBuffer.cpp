@@ -126,14 +126,6 @@ bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 			if (sizeof(SharedData::MesssageHeader) + *shared_head <= _MessageMem->fileSize) // if the header fits at the end
 			{
 					size_t fitLength = _MessageMem->fileSize - *shared_head - sizeof(SharedData::MesssageHeader);				// get how many chars fit at the end.
-				if (msgMutex->Lock(INFINITE)) //Get mutex and write the header ONÖDIG
-				{
-					memcpy((char*)_MessageMem->vFileView + *shared_head, (char*)&header, sizeof(SharedData::MesssageHeader));	//copy the header
-					memcpy((char*)_MessageMem->vFileView + *shared_head + sizeof(SharedData::MesssageHeader), (char*)msg, fitLength);
-
-					memcpy((char*)_MessageMem->vFileView, (char*)msg + fitLength, length - fitLength);							//write at the start of the header
-					msgMutex->Unlock();
-
 					////calculate padding
 			
 					size_t padding = CalculatePadding(length - fitLength,chunkSize);
@@ -141,11 +133,21 @@ bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 					assert(((length - fitLength) + padding) % chunkSize == 0); //just to make sure i've done it right
 					totalMsgLen		= length + sizeof(SharedData::MesssageHeader) + padding;
 
+				if (msgMutex->Lock(INFINITE)) //Get mutex and write the header ONÖDIG
+				{
+					memcpy((char*)_MessageMem->vFileView + *shared_head, (char*)&header, sizeof(SharedData::MesssageHeader));	//copy the header
+					memcpy((char*)_MessageMem->vFileView + *shared_head + sizeof(SharedData::MesssageHeader), (char*)msg, fitLength);
+
+					memcpy((char*)_MessageMem->vFileView, (char*)msg + fitLength, length - fitLength);							//write at the start of the header
+
+
 					if (infoMutex->Lock(INFINITE)) // now update the information
 					{
 						*shared_head = 0 + (length - fitLength) + padding;
 						*freeMem -= totalMsgLen;
 						FlushViewOfFile(_InfoMem->vFileView, sizeof(SharedData::MesssageHeader));
+
+						msgMutex->Unlock();
 						infoMutex->Unlock();
 					}
 					else
@@ -153,6 +155,7 @@ bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 						MessageBox(GetConsoleWindow(), TEXT("Could not lock Mutex "), TEXT("Critical error"), MB_OK);
 						return false;
 					}
+
 				}
 				else
 				{
@@ -162,19 +165,16 @@ bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 			}
 			else //Delete this after more tests to make sure it never enters. 
 			{
-				if (infoMutex->Lock(INFINITE))
-				{
-					*shared_head = 0;	// move the head to start
-					infoMutex->Unlock();
+				
+
 					if (msgMutex->Lock(INFINITE)) //Get mutex and write the header
 					{
-						memcpy((char*)_MessageMem->vFileView + *shared_head, (char*)&header, sizeof(SharedData::MesssageHeader));
-						memcpy((char*)_MessageMem->vFileView + *shared_head + sizeof(SharedData::MesssageHeader), (char*)msg, length);
-						msgMutex->Unlock();
+						memcpy((char*)_MessageMem->vFileView + 0, (char*)&header, sizeof(SharedData::MesssageHeader));
+						memcpy((char*)_MessageMem->vFileView + 0 + sizeof(SharedData::MesssageHeader), (char*)msg, length);
 
 						if (infoMutex->Lock(INFINITE)) // now update the information
 						{
-							*shared_head = (*shared_head + totalMsgLen) % _MessageMem->fileSize;
+							*shared_head = (0 + totalMsgLen) % _MessageMem->fileSize;
 							*freeMem -= totalMsgLen;
 							infoMutex->Unlock();
 						}
@@ -183,11 +183,10 @@ bool SharedMemory::CircleBuffer::Push(void * msg, size_t length)
 							MessageBox(GetConsoleWindow(), TEXT("Could not lock Mutex "), TEXT("Critical error"), MB_OK);
 							return false;
 						}
-					}
-				}
-				else
-					MessageBox(GetConsoleWindow(), TEXT("Could not lock infomutex in Push()"), TEXT("Abandon hope"), MB_OK);
 
+						msgMutex->Unlock();
+					}
+				
 			}
 
 		}
